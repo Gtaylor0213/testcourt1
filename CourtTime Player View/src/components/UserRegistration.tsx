@@ -1,0 +1,875 @@
+import React, { useState } from 'react';
+import { Button } from './ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Switch } from './ui/switch';
+import { Separator } from './ui/separator';
+import { Alert, AlertDescription } from './ui/alert';
+import { ArrowLeft, User, Mail, Phone, Heart, Bell, Building, Check, AlertCircle, Camera, Search, MapPin, Users, Clock } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { useAuth } from '../contexts/AuthContext';
+import logoImage from 'figma:asset/8775e46e6be583b8cd937eefe50d395e0a3fcf52.png';
+
+interface UserRegistrationProps {
+  onBack: () => void;
+  onRegistrationComplete: () => void;
+}
+
+export function UserRegistration({ onBack, onRegistrationComplete }: UserRegistrationProps) {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [facilityCodeStatus, setFacilityCodeStatus] = useState<'none' | 'checking' | 'valid' | 'invalid'>('none');
+  const [facilityInfo, setFacilityInfo] = useState<{ name: string; type: string } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { register } = useAuth();
+  
+  // Facility search states
+  const [facilitySearchQuery, setFacilitySearchQuery] = useState('');
+  const [facilitySearchResults, setFacilitySearchResults] = useState<any[]>([]);
+  const [isSearchingFacilities, setIsSearchingFacilities] = useState(false);
+  const [selectedFacility, setSelectedFacility] = useState<any>(null);
+  const [membershipRequestStatus, setMembershipRequestStatus] = useState<'none' | 'requesting' | 'sent' | 'error'>('none');
+  const [joinMethod, setJoinMethod] = useState<'code' | 'search'>('code');
+  
+  const [formData, setFormData] = useState({
+    // Personal Information
+    firstName: '',
+    lastName: '',
+    email: '',
+    phoneNumber: '',
+    password: '',
+    confirmPassword: '',
+    profilePicture: '',
+    
+    // Sports Preferences
+    role: 'player',
+    skillLevel: '',
+    preferredSport: '',
+    
+    // Facility Code (Optional)
+    facilityCode: '',
+    
+    // Facility Search & Membership
+    selectedFacilityForMembership: null,
+    
+    // Notification Preferences
+    notificationPreferences: {
+      emailBookingConfirmations: true,
+      smsReminders: true,
+      promotionalEmails: false,
+      weeklyDigest: true,
+      maintenanceUpdates: true
+    }
+  });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: ''
+      }));
+    }
+  };
+
+  const handleNotificationChange = (field: string, value: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      notificationPreferences: {
+        ...prev.notificationPreferences,
+        [field]: value
+      }
+    }));
+  };
+
+  const handleFacilityCodeChange = (value: string) => {
+    setFormData(prev => ({ ...prev, facilityCode: value }));
+    
+    if (value.length === 0) {
+      setFacilityCodeStatus('none');
+      setFacilityInfo(null);
+      return;
+    }
+    
+    if (value.length >= 4) {
+      setFacilityCodeStatus('checking');
+      
+      // Simulate API call to validate facility code
+      setTimeout(() => {
+        // Mock validation - replace with real API call
+        const mockFacilities: Record<string, { name: string; type: string }> = {
+          'SVH2024': { name: 'Sunrise Valley HOA', type: 'Tennis & Pickleball Courts' },
+          'DTC2024': { name: 'Downtown Tennis Center', type: 'Tennis Facility' },
+          'RTC2024': { name: 'Riverside Tennis Club', type: 'Private Tennis Club' }
+        };
+        
+        if (mockFacilities[value.toUpperCase()]) {
+          setFacilityCodeStatus('valid');
+          setFacilityInfo(mockFacilities[value.toUpperCase()]);
+        } else {
+          setFacilityCodeStatus('invalid');
+          setFacilityInfo(null);
+        }
+      }, 1000);
+    }
+  };
+
+  const handleFacilitySearch = (query: string) => {
+    setFacilitySearchQuery(query);
+    
+    if (query.length === 0) {
+      setFacilitySearchResults([]);
+      return;
+    }
+    
+    if (query.length >= 2) {
+      setIsSearchingFacilities(true);
+      
+      // Simulate API call to search facilities
+      setTimeout(() => {
+        // Mock search results - replace with real API call
+        const mockFacilities = [
+          {
+            id: 'sunrise-valley',
+            name: 'Sunrise Valley HOA',
+            type: 'Community Courts',
+            location: 'Sunrise Valley, VA',
+            description: 'Tennis and pickleball courts for HOA residents',
+            courts: 6,
+            members: 245,
+            requiresApproval: true
+          },
+          {
+            id: 'downtown-tennis',
+            name: 'Downtown Tennis Center', 
+            type: 'Public Facility',
+            location: 'Downtown Metro Area',
+            description: 'Public tennis facility with professional instruction',
+            courts: 12,
+            members: 580,
+            requiresApproval: false
+          },
+          {
+            id: 'riverside-club',
+            name: 'Riverside Tennis Club',
+            type: 'Private Club',
+            location: 'Riverside District',
+            description: 'Exclusive private tennis and pickleball club',
+            courts: 8,
+            members: 150,
+            requiresApproval: true
+          },
+          {
+            id: 'city-recreation',
+            name: 'City Recreation Center',
+            type: 'Public Facility',
+            location: 'City Center',
+            description: 'Multi-sport recreation facility with court rentals',
+            courts: 4,
+            members: 320,
+            requiresApproval: false
+          }
+        ];
+        
+        const filtered = mockFacilities.filter(facility => 
+          facility.name.toLowerCase().includes(query.toLowerCase()) ||
+          facility.location.toLowerCase().includes(query.toLowerCase()) ||
+          facility.type.toLowerCase().includes(query.toLowerCase())
+        );
+        
+        setFacilitySearchResults(filtered);
+        setIsSearchingFacilities(false);
+      }, 800);
+    }
+  };
+
+  const handleFacilitySelect = (facility: any) => {
+    setSelectedFacility(facility);
+    setFormData(prev => ({ ...prev, selectedFacilityForMembership: facility }));
+  };
+
+  const handleMembershipRequest = () => {
+    if (!selectedFacility) return;
+    
+    setMembershipRequestStatus('requesting');
+    
+    // Simulate membership request API call
+    setTimeout(() => {
+      setMembershipRequestStatus('sent');
+    }, 1500);
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setFormData(prev => ({
+          ...prev,
+          profilePicture: e.target?.result as string
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const validateStep = (step: number) => {
+    const newErrors: Record<string, string> = {};
+
+    if (step === 1) {
+      if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
+      if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
+      if (!formData.email.trim()) newErrors.email = 'Email is required';
+      if (!formData.email.includes('@')) newErrors.email = 'Please enter a valid email';
+      if (!formData.phoneNumber.trim()) newErrors.phoneNumber = 'Phone number is required';
+      if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
+      if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    if (step === 2) {
+      if (!formData.skillLevel) newErrors.skillLevel = 'Please select your skill level';
+      if (!formData.preferredSport) newErrors.preferredSport = 'Please select your preferred sport';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleNext = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+
+  const handleBack = () => {
+    setCurrentStep(prev => prev - 1);
+  };
+
+  const handleSubmit = async () => {
+    if (!validateStep(currentStep)) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+      const success = await register(
+        formData.email, 
+        formData.password, 
+        fullName, 
+        'player'
+      );
+      
+      if (success) {
+        onRegistrationComplete();
+      }
+    } catch (error) {
+      console.error('Registration failed:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <div className="space-y-6">
+            {/* Profile Picture */}
+            <div className="flex justify-center">
+              <div className="relative">
+                <Avatar className="h-24 w-24">
+                  {formData.profilePicture ? (
+                    <AvatarImage src={formData.profilePicture} />
+                  ) : (
+                    <AvatarFallback className="text-lg">
+                      {formData.firstName[0]?.toUpperCase()}{formData.lastName[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700 transition-colors">
+                  <Camera className="h-3 w-3" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Name Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="firstName">First Name *</Label>
+                <Input
+                  id="firstName"
+                  value={formData.firstName}
+                  onChange={(e) => handleInputChange('firstName', e.target.value)}
+                  className={errors.firstName ? 'border-red-500' : ''}
+                />
+                {errors.firstName && <p className="text-sm text-red-500 mt-1">{errors.firstName}</p>}
+              </div>
+              <div>
+                <Label htmlFor="lastName">Last Name *</Label>
+                <Input
+                  id="lastName"
+                  value={formData.lastName}
+                  onChange={(e) => handleInputChange('lastName', e.target.value)}
+                  className={errors.lastName ? 'border-red-500' : ''}
+                />
+                {errors.lastName && <p className="text-sm text-red-500 mt-1">{errors.lastName}</p>}
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div>
+              <Label htmlFor="email" className="flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                Email Address *
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                className={errors.email ? 'border-red-500' : ''}
+              />
+              {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="phone" className="flex items-center gap-2">
+                <Phone className="h-4 w-4" />
+                Phone Number *
+              </Label>
+              <Input
+                id="phone"
+                value={formData.phoneNumber}
+                onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                placeholder="+1 (555) 123-4567"
+                className={errors.phoneNumber ? 'border-red-500' : ''}
+              />
+              {errors.phoneNumber && <p className="text-sm text-red-500 mt-1">{errors.phoneNumber}</p>}
+            </div>
+
+            {/* Password Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="password">Password *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  className={errors.password ? 'border-red-500' : ''}
+                />
+                {errors.password && <p className="text-sm text-red-500 mt-1">{errors.password}</p>}
+                <p className="text-sm text-gray-500 mt-1">Minimum 8 characters</p>
+              </div>
+              <div>
+                <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                  className={errors.confirmPassword ? 'border-red-500' : ''}
+                />
+                {errors.confirmPassword && <p className="text-sm text-red-500 mt-1">{errors.confirmPassword}</p>}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 2:
+        return (
+          <div className="space-y-6">
+            {/* Role and Skill Level */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="role">Role</Label>
+                <Select
+                  value={formData.role}
+                  onValueChange={(value) => handleInputChange('role', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="player">Player</SelectItem>
+                    <SelectItem value="coach">Coach</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="skillLevel">Skill Level *</Label>
+                <Select
+                  value={formData.skillLevel}
+                  onValueChange={(value) => handleInputChange('skillLevel', value)}
+                >
+                  <SelectTrigger className={errors.skillLevel ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Select your skill level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="beginner">Beginner</SelectItem>
+                    <SelectItem value="intermediate">Intermediate</SelectItem>
+                    <SelectItem value="advanced">Advanced</SelectItem>
+                    <SelectItem value="professional">Professional</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.skillLevel && <p className="text-sm text-red-500 mt-1">{errors.skillLevel}</p>}
+              </div>
+            </div>
+
+            {/* Preferred Sport */}
+            <div>
+              <Label htmlFor="preferredSport">Preferred Sport *</Label>
+              <Select
+                value={formData.preferredSport}
+                onValueChange={(value) => handleInputChange('preferredSport', value)}
+              >
+                <SelectTrigger className={errors.preferredSport ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select your preferred sport" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tennis">Tennis</SelectItem>
+                  <SelectItem value="pickleball">Pickleball</SelectItem>
+                  <SelectItem value="both">Both Tennis & Pickleball</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.preferredSport && <p className="text-sm text-red-500 mt-1">{errors.preferredSport}</p>}
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-6">
+            {/* Join Facility Section */}
+            <div>
+              <h3 className="flex items-center gap-2 mb-4">
+                <Building className="h-5 w-5" />
+                Join a Facility (Optional)
+              </h3>
+              <p className="text-sm text-gray-600 mb-6">
+                Connect with a tennis or pickleball facility to book courts and join their community.
+              </p>
+
+              {/* Method Selection */}
+              <div className="flex gap-2 mb-6">
+                <Button
+                  variant={joinMethod === 'code' ? 'default' : 'outline'}
+                  onClick={() => setJoinMethod('code')}
+                  className="flex-1"
+                >
+                  Use Facility Code
+                </Button>
+                <Button
+                  variant={joinMethod === 'search' ? 'default' : 'outline'}
+                  onClick={() => setJoinMethod('search')}
+                  className="flex-1"
+                >
+                  Search Facilities
+                </Button>
+              </div>
+
+              {/* Facility Code Option */}
+              {joinMethod === 'code' && (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="facilityCode">Facility Code</Label>
+                    <Input
+                      id="facilityCode"
+                      value={formData.facilityCode}
+                      onChange={(e) => handleFacilityCodeChange(e.target.value)}
+                      placeholder="Enter facility code to join automatically"
+                      className="mb-2"
+                    />
+                    <p className="text-sm text-gray-500">
+                      If you have a facility code from your club or organization, enter it here to automatically join.
+                    </p>
+                  </div>
+                  
+                  {/* Facility Code Status */}
+                  {facilityCodeStatus === 'checking' && (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>Checking facility code...</AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {facilityCodeStatus === 'valid' && facilityInfo && (
+                    <Alert className="border-green-200 bg-green-50">
+                      <Check className="h-4 w-4 text-green-600" />
+                      <AlertDescription className="text-green-800">
+                        <strong>Facility found:</strong> {facilityInfo.name} ({facilityInfo.type})
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {facilityCodeStatus === 'invalid' && (
+                    <Alert className="border-red-200 bg-red-50">
+                      <AlertCircle className="h-4 w-4 text-red-600" />
+                      <AlertDescription className="text-red-800">
+                        Invalid facility code. Please check and try again.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
+
+              {/* Facility Search Option */}
+              {joinMethod === 'search' && (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="facilitySearch" className="flex items-center gap-2">
+                      <Search className="h-4 w-4" />
+                      Search Facilities
+                    </Label>
+                    <Input
+                      id="facilitySearch"
+                      value={facilitySearchQuery}
+                      onChange={(e) => handleFacilitySearch(e.target.value)}
+                      placeholder="Search by facility name, location, or type..."
+                      className="mb-2"
+                    />
+                    <p className="text-sm text-gray-500">
+                      Search for facilities in your area and request membership.
+                    </p>
+                  </div>
+
+                  {/* Search Results */}
+                  {isSearchingFacilities && (
+                    <div className="text-center py-4">
+                      <AlertCircle className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
+                      <p className="text-sm text-gray-600">Searching facilities...</p>
+                    </div>
+                  )}
+
+                  {facilitySearchResults.length > 0 && !isSearchingFacilities && (
+                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                      {facilitySearchResults.map((facility) => (
+                        <Card 
+                          key={facility.id} 
+                          className={`cursor-pointer transition-all hover:shadow-md ${
+                            selectedFacility?.id === facility.id ? 'ring-2 ring-blue-600 bg-blue-50' : ''
+                          }`}
+                          onClick={() => handleFacilitySelect(facility)}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-900">{facility.name}</h4>
+                                <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {facility.location}
+                                </p>
+                                <p className="text-sm text-gray-500 mt-1">{facility.description}</p>
+                                <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                  <span className="flex items-center gap-1">
+                                    <Building className="h-3 w-3" />
+                                    {facility.courts} courts
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Users className="h-3 w-3" />
+                                    {facility.members} members
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                  facility.type === 'Private Club' 
+                                    ? 'bg-purple-100 text-purple-700'
+                                    : facility.type === 'Public Facility'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {facility.type}
+                                </span>
+                                {facility.requiresApproval && (
+                                  <div className="flex items-center gap-1 mt-2 text-xs text-amber-600">
+                                    <Clock className="h-3 w-3" />
+                                    Requires Approval
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+
+                  {facilitySearchQuery.length >= 2 && facilitySearchResults.length === 0 && !isSearchingFacilities && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Building className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                      <p>No facilities found matching "{facilitySearchQuery}"</p>
+                      <p className="text-sm">Try searching with different keywords.</p>
+                    </div>
+                  )}
+
+                  {/* Selected Facility & Membership Request */}
+                  {selectedFacility && (
+                    <div className="border-t pt-4">
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-blue-900 mb-2">Selected Facility</h4>
+                        <p className="text-blue-800">{selectedFacility.name}</p>
+                        <p className="text-sm text-blue-600">{selectedFacility.location}</p>
+                        
+                        {membershipRequestStatus === 'none' && (
+                          <Button 
+                            onClick={handleMembershipRequest}
+                            className="mt-3 bg-blue-600 hover:bg-blue-700"
+                            size="sm"
+                          >
+                            {selectedFacility.requiresApproval ? 'Request Membership' : 'Join Facility'}
+                          </Button>
+                        )}
+                        
+                        {membershipRequestStatus === 'requesting' && (
+                          <div className="mt-3 flex items-center gap-2 text-blue-600">
+                            <AlertCircle className="h-4 w-4 animate-pulse" />
+                            <span className="text-sm">Sending request...</span>
+                          </div>
+                        )}
+                        
+                        {membershipRequestStatus === 'sent' && (
+                          <Alert className="mt-3 border-green-200 bg-green-50">
+                            <Check className="h-4 w-4 text-green-600" />
+                            <AlertDescription className="text-green-800">
+                              {selectedFacility.requiresApproval 
+                                ? 'Membership request sent! They\'ll review your application and get back to you.'
+                                : 'Successfully joined facility! You can now book courts and access their amenities.'
+                              }
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Notification Preferences */}
+            <div>
+              <h3 className="flex items-center gap-2 mb-4">
+                <Bell className="h-5 w-5" />
+                Notification Preferences
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Choose how you'd like to receive updates and notifications
+              </p>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="emailBooking">Email Booking Confirmations</Label>
+                    <p className="text-sm text-gray-500">Receive email confirmations for new bookings</p>
+                  </div>
+                  <Switch
+                    id="emailBooking"
+                    checked={formData.notificationPreferences.emailBookingConfirmations}
+                    onCheckedChange={(checked) => handleNotificationChange('emailBookingConfirmations', checked)}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="smsReminders">SMS Reminders</Label>
+                    <p className="text-sm text-gray-500">Get text reminders before your court time</p>
+                  </div>
+                  <Switch
+                    id="smsReminders"
+                    checked={formData.notificationPreferences.smsReminders}
+                    onCheckedChange={(checked) => handleNotificationChange('smsReminders', checked)}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="promotionalEmails">Promotional Emails</Label>
+                    <p className="text-sm text-gray-500">Receive offers and promotions from facilities</p>
+                  </div>
+                  <Switch
+                    id="promotionalEmails"
+                    checked={formData.notificationPreferences.promotionalEmails}
+                    onCheckedChange={(checked) => handleNotificationChange('promotionalEmails', checked)}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="weeklyDigest">Weekly Activity Digest</Label>
+                    <p className="text-sm text-gray-500">Summary of your weekly court activity</p>
+                  </div>
+                  <Switch
+                    id="weeklyDigest"
+                    checked={formData.notificationPreferences.weeklyDigest}
+                    onCheckedChange={(checked) => handleNotificationChange('weeklyDigest', checked)}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="maintenanceUpdates">Maintenance Updates</Label>
+                    <p className="text-sm text-gray-500">Notifications about court closures and maintenance</p>
+                  </div>
+                  <Switch
+                    id="maintenanceUpdates"
+                    checked={formData.notificationPreferences.maintenanceUpdates}
+                    onCheckedChange={(checked) => handleNotificationChange('maintenanceUpdates', checked)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const getStepTitle = () => {
+    switch (currentStep) {
+      case 1:
+        return 'Personal Information';
+      case 2:
+        return 'Sports Preferences';
+      case 3:
+        return 'Facility & Notifications';
+      default:
+        return 'Registration';
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20">
+            <div className="flex items-center gap-8">
+              <Button variant="ghost" onClick={onBack} className="flex items-center gap-2 hover:bg-gray-100">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Login
+              </Button>
+              <div className="h-6 w-px bg-gray-300"></div>
+              <div className="flex items-center gap-4">
+                <img src={logoImage} alt="CourtTime" className="h-10 w-auto" />
+                <h1 className="text-2xl font-semibold text-gray-900">Create Player Account</h1>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Registration Content */}
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Progress Steps */}
+        <div className="mb-12">
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              {[1, 2, 3].map((step) => (
+                <div key={step} className="flex flex-col items-center relative z-10">
+                  <div
+                    className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-medium border-2 transition-all duration-200 ${
+                      step <= currentStep
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-400 border-gray-300'
+                    }`}
+                  >
+                    {step}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Progress Line */}
+            <div className="absolute top-6 left-0 right-0 h-0.5 bg-gray-200 -z-10">
+              <div 
+                className="h-full bg-blue-600 transition-all duration-300"
+                style={{ width: `${((currentStep - 1) / 2) * 100}%` }}
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-between mt-4">
+            <div className="text-center flex-1">
+              <p className={`text-sm font-medium ${currentStep >= 1 ? 'text-blue-600' : 'text-gray-500'}`}>
+                Personal Info
+              </p>
+            </div>
+            <div className="text-center flex-1">
+              <p className={`text-sm font-medium ${currentStep >= 2 ? 'text-blue-600' : 'text-gray-500'}`}>
+                Sports Preferences
+              </p>
+            </div>
+            <div className="text-center flex-1">
+              <p className={`text-sm font-medium ${currentStep >= 3 ? 'text-blue-600' : 'text-gray-500'}`}>
+                Facility & Notifications
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Registration Form */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              {getStepTitle()}
+            </CardTitle>
+            <CardDescription>
+              {currentStep === 1 && 'Enter your personal information to create your account'}
+              {currentStep === 2 && 'Tell us about your sports preferences and skill level'}
+              {currentStep === 3 && 'Optional facility code and notification preferences'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {renderStepContent()}
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-between mt-8">
+              <div>
+                {currentStep > 1 && (
+                  <Button variant="outline" onClick={handleBack}>
+                    Previous
+                  </Button>
+                )}
+              </div>
+              <div>
+                {currentStep < 3 ? (
+                  <Button onClick={handleNext} className="bg-blue-600 hover:bg-blue-700">
+                    Next Step
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handleSubmit} 
+                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Creating Account...' : 'Create Account'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

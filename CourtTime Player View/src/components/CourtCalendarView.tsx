@@ -37,7 +37,7 @@ export function CourtCalendarView({
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedFacility, setSelectedFacility] = useState(selectedFacilityId);
   const [selectedView, setSelectedView] = useState('week');
-  const [selectedCourtType, setSelectedCourtType] = useState<'all' | 'tennis' | 'pickleball'>('all');
+  const [selectedCourtType, setSelectedCourtType] = useState<'tennis' | 'pickleball'>('tennis');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [bookingWizard, setBookingWizard] = useState({
     isOpen: false,
@@ -186,9 +186,6 @@ export function CourtCalendarView({
   // Filter courts based on selected court type
   const allCourts = currentFacility?.courts || [];
   const courts = React.useMemo(() => {
-    if (selectedCourtType === 'all') {
-      return allCourts;
-    }
     return allCourts.filter(court => court.type === selectedCourtType);
   }, [allCourts, selectedCourtType]);
 
@@ -509,16 +506,24 @@ export function CourtCalendarView({
             <Badge variant="outline">{currentFacility?.type}</Badge>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-600">Court Type:</span>
-              <Select value={selectedCourtType} onValueChange={(value: 'all' | 'tennis' | 'pickleball') => setSelectedCourtType(value)}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Courts</SelectItem>
-                  <SelectItem value="tennis">Tennis</SelectItem>
-                  <SelectItem value="pickleball">Pickleball</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Button
+                  variant={selectedCourtType === 'tennis' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedCourtType('tennis')}
+                  className={selectedCourtType === 'tennis' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                >
+                  Tennis
+                </Button>
+                <Button
+                  variant={selectedCourtType === 'pickleball' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedCourtType('pickleball')}
+                  className={selectedCourtType === 'pickleball' ? 'bg-green-600 hover:bg-green-700' : ''}
+                >
+                  Pickleball
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -571,14 +576,14 @@ export function CourtCalendarView({
           <CardContent className="p-0">
             {courts.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
-                <p>No {selectedCourtType === 'all' ? '' : selectedCourtType + ' '}courts available at this facility.</p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <p>No {selectedCourtType} courts available at this facility.</p>
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="mt-2"
-                  onClick={() => setSelectedCourtType('all')}
+                  onClick={() => setSelectedCourtType(selectedCourtType === 'tennis' ? 'pickleball' : 'tennis')}
                 >
-                  Show all courts
+                  Show {selectedCourtType === 'tennis' ? 'Pickleball' : 'Tennis'} Courts
                 </Button>
               </div>
             ) : (

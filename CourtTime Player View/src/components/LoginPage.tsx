@@ -10,9 +10,10 @@ import logoImage from 'figma:asset/8775e46e6be583b8cd937eefe50d395e0a3fcf52.png'
 interface LoginPageProps {
   onLogin: () => void;
   onNavigateToUserRegistration: () => void;
+  onNavigateToFacilityRegistration?: () => void;
 }
 
-export function LoginPage({ onLogin, onNavigateToUserRegistration }: LoginPageProps) {
+export function LoginPage({ onLogin, onNavigateToUserRegistration, onNavigateToFacilityRegistration }: LoginPageProps) {
   const [email, setEmail] = useState('player@courttime.com');
   const [password, setPassword] = useState('player123');
   const [isLoading, setIsLoading] = useState(false);
@@ -37,10 +38,6 @@ export function LoginPage({ onLogin, onNavigateToUserRegistration }: LoginPagePr
     }
   };
 
-  const fillDemoCredentials = () => {
-    setEmail('player@courttime.com');
-    setPassword('player123');
-  };
 
   return (
     <div className="min-h-screen flex">
@@ -140,36 +137,27 @@ export function LoginPage({ onLogin, onNavigateToUserRegistration }: LoginPagePr
                 </div>
                 
                 <div className="space-y-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full"
                     onClick={onNavigateToUserRegistration}
                   >
                     Create Player Account
                   </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={onNavigateToFacilityRegistration}
+                  >
+                    Register a Facility
+                  </Button>
                 </div>
               </div>
               
-              <div className="mt-6 text-center space-y-3">
+              <div className="mt-6 text-center">
                 <a href="#" className="text-sm text-blue-600 hover:underline">
                   Forgot your password?
                 </a>
-                
-                {/* Demo Account Buttons */}
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">Quick Demo Access:</p>
-                  <div className="flex gap-2">
-                    <Button 
-                      type="button"
-                      variant="outline" 
-                      size="sm"
-                      className="flex-1 text-xs"
-                      onClick={fillDemoCredentials}
-                    >
-                      Player Demo
-                    </Button>
-                  </div>
-                </div>
               </div>
             </CardContent>
           </Card>

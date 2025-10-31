@@ -41,18 +41,23 @@ export function UserRegistration({ onBack, onRegistrationComplete }: UserRegistr
     password: '',
     confirmPassword: '',
     profilePicture: '',
-    
+
+    // Address Information
+    streetAddress: '',
+    city: '',
+    state: '',
+    zipCode: '',
+
     // Sports Preferences
     role: 'player',
     skillLevel: '',
-    preferredSport: '',
-    
+
     // Facility Code (Optional)
     facilityCode: '',
-    
+
     // Facility Search & Membership
     selectedFacilityForMembership: null,
-    
+
     // Notification Preferences
     notificationPreferences: {
       emailBookingConfirmations: true,
@@ -236,7 +241,6 @@ export function UserRegistration({ onBack, onRegistrationComplete }: UserRegistr
 
     if (step === 2) {
       if (!formData.skillLevel) newErrors.skillLevel = 'Please select your skill level';
-      if (!formData.preferredSport) newErrors.preferredSport = 'Please select your preferred sport';
     }
 
     setErrors(newErrors);
@@ -361,6 +365,64 @@ export function UserRegistration({ onBack, onRegistrationComplete }: UserRegistr
               {errors.phoneNumber && <p className="text-sm text-red-500 mt-1">{errors.phoneNumber}</p>}
             </div>
 
+            {/* Address Information */}
+            <div className="space-y-4 pt-4 border-t">
+              <h3 className="text-lg font-medium flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Address Information
+              </h3>
+
+              <div>
+                <Label htmlFor="streetAddress">Street Address</Label>
+                <Input
+                  id="streetAddress"
+                  value={formData.streetAddress}
+                  onChange={(e) => handleInputChange('streetAddress', e.target.value)}
+                  placeholder="123 Main Street"
+                  className={errors.streetAddress ? 'border-red-500' : ''}
+                />
+                {errors.streetAddress && <p className="text-sm text-red-500 mt-1">{errors.streetAddress}</p>}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-1">
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    value={formData.city}
+                    onChange={(e) => handleInputChange('city', e.target.value)}
+                    placeholder="City"
+                    className={errors.city ? 'border-red-500' : ''}
+                  />
+                  {errors.city && <p className="text-sm text-red-500 mt-1">{errors.city}</p>}
+                </div>
+
+                <div>
+                  <Label htmlFor="state">State</Label>
+                  <Input
+                    id="state"
+                    value={formData.state}
+                    onChange={(e) => handleInputChange('state', e.target.value)}
+                    placeholder="State"
+                    className={errors.state ? 'border-red-500' : ''}
+                  />
+                  {errors.state && <p className="text-sm text-red-500 mt-1">{errors.state}</p>}
+                </div>
+
+                <div>
+                  <Label htmlFor="zipCode">ZIP Code</Label>
+                  <Input
+                    id="zipCode"
+                    value={formData.zipCode}
+                    onChange={(e) => handleInputChange('zipCode', e.target.value)}
+                    placeholder="12345"
+                    className={errors.zipCode ? 'border-red-500' : ''}
+                  />
+                  {errors.zipCode && <p className="text-sm text-red-500 mt-1">{errors.zipCode}</p>}
+                </div>
+              </div>
+            </div>
+
             {/* Password Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -429,25 +491,6 @@ export function UserRegistration({ onBack, onRegistrationComplete }: UserRegistr
                 </Select>
                 {errors.skillLevel && <p className="text-sm text-red-500 mt-1">{errors.skillLevel}</p>}
               </div>
-            </div>
-
-            {/* Preferred Sport */}
-            <div>
-              <Label htmlFor="preferredSport">Preferred Sport *</Label>
-              <Select
-                value={formData.preferredSport}
-                onValueChange={(value) => handleInputChange('preferredSport', value)}
-              >
-                <SelectTrigger className={errors.preferredSport ? 'border-red-500' : ''}>
-                  <SelectValue placeholder="Select your preferred sport" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tennis">Tennis</SelectItem>
-                  <SelectItem value="pickleball">Pickleball</SelectItem>
-                  <SelectItem value="both">Both Tennis & Pickleball</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.preferredSport && <p className="text-sm text-red-500 mt-1">{errors.preferredSport}</p>}
             </div>
           </div>
         );
@@ -748,7 +791,7 @@ export function UserRegistration({ onBack, onRegistrationComplete }: UserRegistr
       case 1:
         return 'Personal Information';
       case 2:
-        return 'Sports Preferences';
+        return 'Role & Skill Level';
       case 3:
         return 'Facility & Notifications';
       default:
@@ -815,7 +858,7 @@ export function UserRegistration({ onBack, onRegistrationComplete }: UserRegistr
             </div>
             <div className="text-center flex-1">
               <p className={`text-sm font-medium ${currentStep >= 2 ? 'text-blue-600' : 'text-gray-500'}`}>
-                Sports Preferences
+                Role & Skill Level
               </p>
             </div>
             <div className="text-center flex-1">
@@ -834,8 +877,8 @@ export function UserRegistration({ onBack, onRegistrationComplete }: UserRegistr
               {getStepTitle()}
             </CardTitle>
             <CardDescription>
-              {currentStep === 1 && 'Enter your personal information to create your account'}
-              {currentStep === 2 && 'Tell us about your sports preferences and skill level'}
+              {currentStep === 1 && 'Enter your personal information and address to create your account'}
+              {currentStep === 2 && 'Tell us about your role and skill level'}
               {currentStep === 3 && 'Optional facility code and notification preferences'}
             </CardDescription>
           </CardHeader>

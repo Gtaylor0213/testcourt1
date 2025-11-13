@@ -10,7 +10,9 @@
       "Bash(mkdir:*)",
       "Bash(ping:*)",
       "Bash(nul)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd admin view functionality with development mode switcher\n\nThis commit adds a comprehensive admin interface that allows facility administrators to manage their facilities alongside having access to all player features.\n\nKey Features:\n- ViewSwitcher component: Toggle between player and admin views (dev mode only)\n- Enhanced UnifiedSidebar: Shows admin-specific navigation when in admin mode\n- 7 new admin page components (placeholders ready for implementation):\n  * Admin Dashboard - Overview with stats and quick actions\n  * Facility Management - Manage facility details and settings\n  * Court Details Management - Configure individual courts\n  * Booking Management - View and manage all bookings\n  * Admin Booking Creation - Create bookings for members\n  * Member Management - Manage member information and requests\n  * Analytics & Reports - Usage statistics and reports\n\nAdditional Updates:\n- Removed Account Balance section from Player Dashboard (membership-based model)\n- Simplified player registration to collect essential profile information only\n- Added facility search and membership request functionality in registration\n- Fixed bulletin board post margins for better spacing\n- Created forgot password and reset password pages with full flow\n- Removed duplicate \"Forgot password?\" link from login page\n\nAdmin users retain full access to player features including court calendar, dashboard, hitting partner finder, and club information while gaining access to facility management tools.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []

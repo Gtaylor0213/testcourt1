@@ -15,8 +15,8 @@ interface LoginPageProps {
 }
 
 export function LoginPage({ onLogin, onNavigateToUserRegistration, onNavigateToFacilityRegistration, onNavigateToForgotPassword }: LoginPageProps) {
-  const [email, setEmail] = useState('player@courttime.com');
-  const [password, setPassword] = useState('player123');
+  const [email, setEmail] = useState('testplayer@courttime.com');
+  const [password, setPassword] = useState('password123');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
 

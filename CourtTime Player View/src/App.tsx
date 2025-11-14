@@ -13,6 +13,7 @@ import { BulletinBoard } from './components/BulletinBoard';
 import { FindHittingPartner } from './components/FindHittingPartner';
 import { ForgotPassword } from './components/ForgotPassword';
 import { ResetPassword } from './components/ResetPassword';
+import { FacilityRegistration } from './components/FacilityRegistration';
 import { ViewSwitcher } from './components/ViewSwitcher';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { FacilityManagement } from './components/admin/FacilityManagement';
@@ -22,7 +23,7 @@ import { AdminBooking } from './components/admin/AdminBooking';
 import { MemberManagement } from './components/admin/MemberManagement';
 import { Analytics } from './components/admin/Analytics';
 
-type Screen = 'login' | 'court-calendar' | 'player-dashboard' | 'quick-reservation' | 'profile' | 'user-registration' | 'club-info' | 'bulletin-board' | 'hitting-partner' | 'forgot-password' | 'reset-password' | 'admin-dashboard' | 'facility-management' | 'court-management' | 'booking-management' | 'admin-booking' | 'member-management' | 'analytics';
+type Screen = 'login' | 'court-calendar' | 'player-dashboard' | 'quick-reservation' | 'profile' | 'user-registration' | 'facility-registration' | 'club-info' | 'bulletin-board' | 'hitting-partner' | 'forgot-password' | 'reset-password' | 'admin-dashboard' | 'facility-management' | 'court-management' | 'booking-management' | 'admin-booking' | 'member-management' | 'analytics';
 
 function AppContent() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('login');
@@ -38,7 +39,7 @@ function AppContent() {
   useEffect(() => {
     if (user && currentScreen === 'login') {
       setCurrentScreen('court-calendar');
-    } else if (!user && currentScreen !== 'login' && currentScreen !== 'user-registration' && currentScreen !== 'forgot-password' && currentScreen !== 'reset-password') {
+    } else if (!user && currentScreen !== 'login' && currentScreen !== 'user-registration' && currentScreen !== 'facility-registration' && currentScreen !== 'forgot-password' && currentScreen !== 'reset-password') {
       setCurrentScreen('login');
       setSidebarCollapsed(false);
     }
@@ -128,6 +129,14 @@ function AppContent() {
     setCurrentScreen('login');
   };
 
+  const navigateToFacilityRegistration = () => {
+    setCurrentScreen('facility-registration');
+  };
+
+  const handleFacilityRegistrationComplete = () => {
+    setCurrentScreen('login');
+  };
+
   const navigateToForgotPassword = () => {
     setCurrentScreen('forgot-password');
   };
@@ -188,6 +197,7 @@ function AppContent() {
         <LoginPage
           onLogin={handleLogin}
           onNavigateToUserRegistration={navigateToUserRegistration}
+          onNavigateToFacilityRegistration={navigateToFacilityRegistration}
           onNavigateToForgotPassword={navigateToForgotPassword}
         />
       )}
@@ -210,6 +220,13 @@ function AppContent() {
         <UserRegistration
           onBack={navigateBackToLogin}
           onRegistrationComplete={handleUserRegistrationComplete}
+        />
+      )}
+
+      {currentScreen === 'facility-registration' && (
+        <FacilityRegistration
+          onBack={navigateBackToLogin}
+          onRegistrationComplete={handleFacilityRegistrationComplete}
         />
       )}
       

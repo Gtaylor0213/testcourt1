@@ -1,10 +1,11 @@
 import React from 'react';
-import { Avatar, AvatarFallback } from './ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { User, LogOut, ChevronLeft, ChevronRight, ChevronDown, Calendar, Building2, LayoutDashboard, UserSearch, Settings, Users, BarChart3, BookOpen, UserCog, MessageSquare } from 'lucide-react';
 import logoImage from 'figma:asset/8775e46e6be583b8cd937eefe50d395e0a3fcf52.png';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Facility {
   id: string;
@@ -68,12 +69,24 @@ export function UnifiedSidebar({
   currentPage,
   clubs = []
 }: UnifiedSidebarProps) {
+  const { user } = useAuth();
 
   // Default clubs if none provided
   const userClubs = clubs.length > 0 ? clubs : [
     { id: 'riverside-tennis', name: 'Riverside Tennis Club' },
     { id: 'downtown-racquet', name: 'Downtown Racquet Club' }
   ];
+
+  // Get user initials
+  const getUserInitials = () => {
+    if (!user?.fullName) return 'U';
+    return user.fullName
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
   
   const SidebarButton = ({ 
     onClick, 
@@ -263,12 +276,15 @@ export function UnifiedSidebar({
                   <DropdownMenu>
                     <DropdownMenuTrigger className="w-full flex items-center justify-center py-2 hover:bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                       <Avatar className="h-8 w-8">
-                        <AvatarFallback>JD</AvatarFallback>
+                        {user?.profileImageUrl && (
+                          <AvatarImage src={user.profileImageUrl} alt={user.fullName || 'User'} />
+                        )}
+                        <AvatarFallback>{getUserInitials()}</AvatarFallback>
                       </Avatar>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
                       <div className="px-3 py-2 border-b">
-                        <p className="text-sm font-medium">John Doe</p>
+                        <p className="text-sm font-medium">{user?.fullName || 'User'}</p>
                         <p className="text-xs text-gray-600 capitalize">{userType || 'Player'}</p>
                       </div>
                       <DropdownMenuItem onClick={onNavigateToProfile}>
@@ -292,10 +308,13 @@ export function UnifiedSidebar({
             <DropdownMenu>
               <DropdownMenuTrigger className="w-full flex items-center px-3 py-2 hover:bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                 <Avatar className="h-8 w-8 mr-3">
-                  <AvatarFallback>JD</AvatarFallback>
+                  {user?.profileImageUrl && (
+                    <AvatarImage src={user.profileImageUrl} alt={user.fullName || 'User'} />
+                  )}
+                  <AvatarFallback>{getUserInitials()}</AvatarFallback>
                 </Avatar>
                 <div className="text-left flex-1">
-                  <p className="text-sm font-medium">John Doe</p>
+                  <p className="text-sm font-medium">{user?.fullName || 'User'}</p>
                   <p className="text-xs text-gray-600 capitalize">{userType || 'Player'}</p>
                 </div>
                 <ChevronDown className="h-4 w-4 text-gray-400" />

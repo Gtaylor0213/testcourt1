@@ -83,17 +83,33 @@ export function FindHittingPartner({
         }
       }
 
-      // Load hitting partner posts
+      // Load hitting partner posts - filter by member facilities
       let postsResponse;
       if (selectedFacilityFilter === 'all' || !selectedFacilityFilter) {
-        // If user has no facilities, show all posts
-        if (memberFacilities.length === 0) {
-          postsResponse = await hittingPartnerApi.getAll();
+        // If user has facilities, fetch posts from all their facilities
+        if (memberFacilities.length > 0) {
+          // Fetch posts from all member facilities
+          const facilityIds = memberFacilities.map((f: any) => f.facilityId);
+          const allPosts: any[] = [];
+
+          for (const facilityId of facilityIds) {
+            const response = await hittingPartnerApi.getByFacility(facilityId);
+            if (response.success && response.data?.posts) {
+              allPosts.push(...response.data.posts);
+            }
+          }
+
+          // Remove duplicates and set posts
+          const uniquePosts = Array.from(new Map(allPosts.map(post => [post.id, post])).values());
+          setPosts(uniquePosts);
+          setLoading(false);
+          return;
         } else {
-          // Show all posts if "all" is selected
+          // If no facilities, show all posts (browse mode)
           postsResponse = await hittingPartnerApi.getAll();
         }
       } else {
+        // Show posts for specific facility
         postsResponse = await hittingPartnerApi.getByFacility(selectedFacilityFilter);
       }
 

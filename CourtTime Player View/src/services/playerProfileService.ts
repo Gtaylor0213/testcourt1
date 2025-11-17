@@ -7,28 +7,34 @@ import { query } from '../database/connection';
 
 export interface PlayerProfileData {
   userId: string;
+  firstName?: string;
+  lastName?: string;
+  address?: string;
+  streetAddress?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  phone?: string;
   skillLevel?: string;
-  ntrpRating?: number;
-  playingHand?: string;
-  playingStyle?: string;
-  preferredCourtSurface?: string;
   bio?: string;
   profileImageUrl?: string;
-  yearsPlaying?: number;
 }
 
 export interface PlayerProfileWithUser {
   userId: string;
   email: string;
   fullName: string;
+  firstName: string;
+  lastName: string;
+  address?: string;
+  streetAddress?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  phone?: string;
   skillLevel?: string;
-  ntrpRating?: number;
-  playingHand?: string;
-  playingStyle?: string;
-  preferredCourtSurface?: string;
   bio?: string;
   profileImageUrl?: string;
-  yearsPlaying?: number;
   memberFacilities?: Array<{
     facilityId: string;
     facilityName: string;
@@ -43,24 +49,29 @@ export interface PlayerProfileWithUser {
  */
 export async function getPlayerProfile(userId: string): Promise<PlayerProfileWithUser | null> {
   try {
+    console.log('Fetching player profile for userId:', userId);
     const result = await query(
       `SELECT
         u.id as "userId",
         u.email,
         u.full_name as "fullName",
+        u.first_name as "firstName",
+        u.last_name as "lastName",
+        u.address,
+        u.street_address as "streetAddress",
+        u.city,
+        u.state,
+        u.zip_code as "zipCode",
+        u.phone,
         pp.skill_level as "skillLevel",
-        pp.ntrp_rating as "ntrpRating",
-        pp.playing_hand as "playingHand",
-        pp.playing_style as "playingStyle",
-        pp.preferred_court_surface as "preferredCourtSurface",
         pp.bio,
-        pp.profile_image_url as "profileImageUrl",
-        pp.years_playing as "yearsPlaying"
+        pp.profile_image_url as "profileImageUrl"
        FROM users u
        LEFT JOIN player_profiles pp ON u.id = pp.user_id
        WHERE u.id = $1`,
       [userId]
     );
+    console.log('Query result rows:', result.rows.length);
 
     if (result.rows.length === 0) {
       return null;
@@ -87,7 +98,8 @@ export async function getPlayerProfile(userId: string): Promise<PlayerProfileWit
 
     return profile;
   } catch (error) {
-    console.error('Get player profile error:', error);
+    console.error('Get player profile error details:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     throw new Error('Failed to fetch player profile');
   }
 }
@@ -100,69 +112,105 @@ export async function updatePlayerProfile(
   updates: Partial<PlayerProfileData>
 ): Promise<boolean> {
   try {
-    const fields: string[] = [];
-    const values: any[] = [];
-    let paramIndex = 1;
+    const userFields: string[] = [];
+    const profileFields: string[] = [];
+    const userValues: any[] = [];
+    const profileValues: any[] = [];
+    let userParamIndex = 1;
+    let profileParamIndex = 1;
 
+    // User table fields
+    if (updates.firstName !== undefined) {
+      userFields.push(`first_name = $${userParamIndex++}`);
+      userValues.push(updates.firstName);
+      // Also update full_name
+      const lastName = updates.lastName;
+      if (lastName !== undefined || userFields.length > 0) {
+        userFields.push(`full_name = $${userParamIndex++}`);
+        userValues.push(`${updates.firstName} ${lastName || ''}`);
+      }
+    }
+
+    if (updates.lastName !== undefined) {
+      userFields.push(`last_name = $${userParamIndex++}`);
+      userValues.push(updates.lastName);
+      // Update full_name if not already done
+      if (!userFields.some(f => f.includes('full_name'))) {
+        userFields.push(`full_name = COALESCE(first_name, '') || ' ' || $${userParamIndex++}`);
+        userValues.push(updates.lastName);
+      }
+    }
+
+    if (updates.address !== undefined) {
+      userFields.push(`address = $${userParamIndex++}`);
+      userValues.push(updates.address);
+    }
+
+    if (updates.streetAddress !== undefined) {
+      userFields.push(`street_address = $${userParamIndex++}`);
+      userValues.push(updates.streetAddress);
+    }
+
+    if (updates.city !== undefined) {
+      userFields.push(`city = $${userParamIndex++}`);
+      userValues.push(updates.city);
+    }
+
+    if (updates.state !== undefined) {
+      userFields.push(`state = $${userParamIndex++}`);
+      userValues.push(updates.state);
+    }
+
+    if (updates.zipCode !== undefined) {
+      userFields.push(`zip_code = $${userParamIndex++}`);
+      userValues.push(updates.zipCode);
+    }
+
+    if (updates.phone !== undefined) {
+      userFields.push(`phone = $${userParamIndex++}`);
+      userValues.push(updates.phone);
+    }
+
+    // Player profile table fields
     if (updates.skillLevel !== undefined) {
-      fields.push(`skill_level = $${paramIndex++}`);
-      values.push(updates.skillLevel);
-    }
-
-    if (updates.ntrpRating !== undefined) {
-      fields.push(`ntrp_rating = $${paramIndex++}`);
-      values.push(updates.ntrpRating);
-    }
-
-    if (updates.playingHand !== undefined) {
-      fields.push(`playing_hand = $${paramIndex++}`);
-      values.push(updates.playingHand);
-    }
-
-    if (updates.playingStyle !== undefined) {
-      fields.push(`playing_style = $${paramIndex++}`);
-      values.push(updates.playingStyle);
-    }
-
-    if (updates.preferredCourtSurface !== undefined) {
-      fields.push(`preferred_court_surface = $${paramIndex++}`);
-      values.push(updates.preferredCourtSurface);
+      profileFields.push(`skill_level = $${profileParamIndex++}`);
+      profileValues.push(updates.skillLevel);
     }
 
     if (updates.bio !== undefined) {
-      fields.push(`bio = $${paramIndex++}`);
-      values.push(updates.bio);
+      profileFields.push(`bio = $${profileParamIndex++}`);
+      profileValues.push(updates.bio);
     }
 
     if (updates.profileImageUrl !== undefined) {
-      fields.push(`profile_image_url = $${paramIndex++}`);
-      values.push(updates.profileImageUrl);
+      profileFields.push(`profile_image_url = $${profileParamIndex++}`);
+      profileValues.push(updates.profileImageUrl);
     }
 
-    if (updates.yearsPlaying !== undefined) {
-      fields.push(`years_playing = $${paramIndex++}`);
-      values.push(updates.yearsPlaying);
+    // Update users table
+    if (userFields.length > 0) {
+      userValues.push(userId);
+      await query(
+        `UPDATE users
+         SET ${userFields.join(', ')}
+         WHERE id = $${userParamIndex}`,
+        userValues
+      );
     }
 
-    if (fields.length === 0) {
-      return false;
+    // Update player_profiles table
+    if (profileFields.length > 0) {
+      profileValues.push(userId);
+      await query(
+        `INSERT INTO player_profiles (user_id, ${profileFields.map(f => f.split(' = ')[0]).join(', ')})
+         VALUES ($${profileParamIndex}, ${profileValues.slice(0, -1).map((_, i) => `$${i + 1}`).join(', ')})
+         ON CONFLICT (user_id) DO UPDATE SET
+           ${profileFields.join(', ')}`,
+        profileValues
+      );
     }
 
-    values.push(userId);
-
-    // Upsert player profile
-    await query(
-      `INSERT INTO player_profiles (user_id, ${fields.map((_, i) => {
-        const fieldName = fields[i].split(' = ')[0];
-        return fieldName;
-      }).join(', ')})
-       VALUES ($${paramIndex}, ${values.slice(0, -1).map((_, i) => `$${i + 1}`).join(', ')})
-       ON CONFLICT (user_id) DO UPDATE SET
-         ${fields.join(', ')}`,
-      values
-    );
-
-    return true;
+    return userFields.length > 0 || profileFields.length > 0;
   } catch (error) {
     console.error('Update player profile error:', error);
     throw new Error('Failed to update player profile');

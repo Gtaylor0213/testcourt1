@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { UnifiedSidebar } from './UnifiedSidebar';
-import { ArrowLeft, MapPin, Phone, Mail, Globe, Clock, Users, Star, Calendar, Clipboard } from 'lucide-react';
+import { ArrowLeft, MapPin, Phone, Mail, Globe, Clock, Users, Star, Calendar, Clipboard, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { facilitiesApi } from '../api/client';
+import { facilitiesApi, playerProfileApi } from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 
 interface ClubInfoProps {
@@ -61,8 +62,11 @@ export function ClubInfo({
   onToggleSidebar,
   clubId
 }: ClubInfoProps) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [facility, setFacility] = useState<FacilityData | null>(null);
+  const [memberFacilities, setMemberFacilities] = useState<any[]>([]);
+  const [isMember, setIsMember] = useState(false);
 
   useEffect(() => {
     if (clubId) {
@@ -73,6 +77,21 @@ export function ClubInfo({
   const loadFacilityData = async () => {
     try {
       setLoading(true);
+
+      // Load user's member facilities to check if they're a member
+      if (user?.id) {
+        const profileResponse = await playerProfileApi.getProfile(user.id);
+        if (profileResponse.success && profileResponse.data?.profile) {
+          const facilities = profileResponse.data.profile.memberFacilities || [];
+          setMemberFacilities(facilities);
+
+          // Check if user is a member of this facility
+          const isActiveMember = facilities.some(
+            (f: any) => f.facilityId === clubId && f.status === 'active'
+          );
+          setIsMember(isActiveMember);
+        }
+      }
 
       const facilityResponse = await facilitiesApi.getById(clubId);
       if (facilityResponse.success && facilityResponse.data?.facility) {
@@ -167,6 +186,30 @@ export function ClubInfo({
 
         {/* Content */}
         <div className="p-6 max-w-6xl mx-auto">
+          {/* Non-Member Notice */}
+          {!isMember && (
+            <Card className="mb-6 border-blue-200 bg-blue-50">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="font-medium text-blue-900 mb-1">Not a Member</h3>
+                    <p className="text-sm text-blue-800 mb-3">
+                      You're viewing information for a facility you're not currently a member of. Request membership to access courts and book sessions.
+                    </p>
+                    <Button
+                      onClick={onNavigateToProfile}
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      Request Membership
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Club Header */}
           <Card className="mb-6">
             <CardContent className="p-6">

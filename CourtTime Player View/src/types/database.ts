@@ -11,7 +11,15 @@ export interface User {
   id: string;
   email: string;
   passwordHash?: string; // Only used server-side
-  fullName: string;
+  fullName: string; // Computed from firstName + lastName
+  firstName: string;
+  lastName: string;
+  address?: string;
+  streetAddress?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  phone?: string;
   userType: 'player' | 'admin';
   createdAt: Date;
   updatedAt: Date;
@@ -196,14 +204,9 @@ export interface LeagueParticipant {
 
 export interface PlayerProfile {
   userId: string;
-  skillLevel?: string;
-  ntrpRating?: number;
-  playingHand?: 'Right' | 'Left' | 'Both';
-  playingStyle?: string;
-  preferredCourtSurface?: string;
+  skillLevel?: string; // Beginner, Intermediate, Advanced, Professional
   bio?: string;
   profileImageUrl?: string;
-  yearsPlaying?: number;
   createdAt: Date;
   updatedAt: Date;
 }

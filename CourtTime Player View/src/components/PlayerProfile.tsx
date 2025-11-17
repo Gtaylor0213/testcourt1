@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Textarea } from './ui/textarea';
-import { Avatar, AvatarFallback } from './ui/avatar';
-import { ArrowLeft, Save, User, Building2, Plus, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { ArrowLeft, Save, User, Building2, Plus, CheckCircle, Clock, XCircle, Camera } from 'lucide-react';
 import { UnifiedSidebar } from './UnifiedSidebar';
 import { useAuth } from '../contexts/AuthContext';
 import { playerProfileApi, facilitiesApi } from '../api/client';
@@ -42,6 +42,7 @@ export function PlayerProfile({
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Facility search
   const [facilitySearchQuery, setFacilitySearchQuery] = useState('');
@@ -50,15 +51,18 @@ export function PlayerProfile({
   const [requestingMembership, setRequestingMembership] = useState<string | null>(null);
 
   const [profileData, setProfileData] = useState({
-    fullName: '',
-    email: '',
+    firstName: '',
+    lastName: '',
+    email: user?.email || '',
+    address: '',
+    streetAddress: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    phone: '',
     skillLevel: '',
-    ntrpRating: null as number | null,
-    playingHand: '',
-    playingStyle: '',
-    preferredCourtSurface: '',
     bio: '',
-    yearsPlaying: null as number | null,
+    profileImageUrl: '',
     memberFacilities: [] as any[]
   });
 
@@ -67,6 +71,18 @@ export function PlayerProfile({
       loadProfile();
     }
   }, [user?.id]);
+
+  // Update profile data when user changes
+  useEffect(() => {
+    if (user) {
+      setProfileData(prev => ({
+        ...prev,
+        firstName: (user as any).firstName || '',
+        lastName: (user as any).lastName || '',
+        email: user.email || ''
+      }));
+    }
+  }, [user]);
 
   const loadProfile = async () => {
     if (!user?.id) return;
@@ -78,15 +94,18 @@ export function PlayerProfile({
       if (response.success && response.data?.profile) {
         const profile = response.data.profile;
         setProfileData({
-          fullName: profile.fullName || '',
-          email: profile.email || '',
+          firstName: profile.firstName || '',
+          lastName: profile.lastName || '',
+          email: user?.email || profile.email || '',
+          address: profile.address || '',
+          streetAddress: profile.streetAddress || '',
+          city: profile.city || '',
+          state: profile.state || '',
+          zipCode: profile.zipCode || '',
+          phone: profile.phone || '',
           skillLevel: profile.skillLevel || '',
-          ntrpRating: profile.ntrpRating || null,
-          playingHand: profile.playingHand || '',
-          playingStyle: profile.playingStyle || '',
-          preferredCourtSurface: profile.preferredCourtSurface || '',
           bio: profile.bio || '',
-          yearsPlaying: profile.yearsPlaying || null,
+          profileImageUrl: profile.profileImageUrl || '',
           memberFacilities: profile.memberFacilities || []
         });
       }
@@ -98,19 +117,58 @@ export function PlayerProfile({
     }
   };
 
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB');
+      return;
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file');
+      return;
+    }
+
+    // Convert to base64 for preview and storage
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setProfileData(prev => ({
+        ...prev,
+        profileImageUrl: base64String
+      }));
+      toast.success('Image uploaded! Click Save to update your profile.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageClick = () => {
+    if (isEditing) {
+      fileInputRef.current?.click();
+    }
+  };
+
   const handleSave = async () => {
     if (!user?.id) return;
 
     try {
       setSaving(true);
       const updates = {
+        firstName: profileData.firstName || undefined,
+        lastName: profileData.lastName || undefined,
+        address: profileData.address || undefined,
+        streetAddress: profileData.streetAddress || undefined,
+        city: profileData.city || undefined,
+        state: profileData.state || undefined,
+        zipCode: profileData.zipCode || undefined,
+        phone: profileData.phone || undefined,
         skillLevel: profileData.skillLevel || undefined,
-        ntrpRating: profileData.ntrpRating || undefined,
-        playingHand: profileData.playingHand || undefined,
-        playingStyle: profileData.playingStyle || undefined,
-        preferredCourtSurface: profileData.preferredCourtSurface || undefined,
         bio: profileData.bio || undefined,
-        yearsPlaying: profileData.yearsPlaying || undefined
+        profileImageUrl: profileData.profileImageUrl || undefined
       };
 
       const response = await playerProfileApi.updateProfile(user.id, updates);
@@ -221,12 +279,13 @@ export function PlayerProfile({
   };
 
   const getInitials = () => {
-    return profileData.fullName
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
+    const firstName = profileData.firstName || '';
+    const lastName = profileData.lastName || '';
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || 'U';
+  };
+
+  const getFullName = () => {
+    return `${profileData.firstName} ${profileData.lastName}`.trim() || 'No name set';
   };
 
   if (loading) {
@@ -295,22 +354,36 @@ export function PlayerProfile({
             <div className="lg:col-span-1">
               <Card>
                 <CardHeader className="text-center">
-                  <div className="relative mx-auto">
+                  <div className="relative mx-auto w-32 h-32">
                     <Avatar className="h-32 w-32 mx-auto">
+                      {profileData.profileImageUrl && (
+                        <AvatarImage src={profileData.profileImageUrl} alt={getFullName()} />
+                      )}
                       <AvatarFallback className="text-2xl">
                         {getInitials()}
                       </AvatarFallback>
                     </Avatar>
+                    {isEditing && (
+                      <button
+                        onClick={handleImageClick}
+                        className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors shadow-lg"
+                        title="Upload profile picture"
+                      >
+                        <Camera className="h-4 w-4" />
+                      </button>
+                    )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
                   </div>
-                  <CardTitle className="mt-4">{profileData.fullName}</CardTitle>
+                  <CardTitle className="mt-4">{getFullName()}</CardTitle>
                   <CardDescription className="capitalize">
                     {profileData.skillLevel ? `${profileData.skillLevel} Level` : 'No skill level set'}
                   </CardDescription>
-                  {profileData.ntrpRating && (
-                    <div className="text-sm text-gray-600 mt-1">
-                      NTRP: {profileData.ntrpRating}
-                    </div>
-                  )}
                 </CardHeader>
                 <CardContent className="text-center space-y-2">
                   <div className="text-sm text-gray-600">
@@ -364,133 +437,148 @@ export function PlayerProfile({
 
             {/* Profile Details */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Playing Information */}
+              {/* Personal Information */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Playing Information</CardTitle>
+                  <CardTitle>Personal Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="skillLevel">Skill Level</Label>
-                      <Select
-                        value={profileData.skillLevel}
-                        onValueChange={(value) => setProfileData(prev => ({ ...prev, skillLevel: value }))}
-                        disabled={!isEditing}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select skill level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Beginner">Beginner</SelectItem>
-                          <SelectItem value="Intermediate">Intermediate</SelectItem>
-                          <SelectItem value="Advanced">Advanced</SelectItem>
-                          <SelectItem value="Professional">Professional</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="ntrpRating">NTRP Rating</Label>
+                      <Label htmlFor="firstName">First Name</Label>
                       <Input
-                        id="ntrpRating"
-                        type="number"
-                        step="0.5"
-                        min="1"
-                        max="7"
-                        value={profileData.ntrpRating || ''}
-                        onChange={(e) => setProfileData(prev => ({
-                          ...prev,
-                          ntrpRating: e.target.value ? parseFloat(e.target.value) : null
-                        }))}
+                        id="firstName"
+                        value={profileData.firstName}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
                         disabled={!isEditing}
-                        placeholder="e.g. 3.5"
+                        placeholder="First name"
                       />
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="playingHand">Playing Hand</Label>
-                      <Select
-                        value={profileData.playingHand}
-                        onValueChange={(value) => setProfileData(prev => ({ ...prev, playingHand: value }))}
-                        disabled={!isEditing}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select hand" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Right">Right</SelectItem>
-                          <SelectItem value="Left">Left</SelectItem>
-                          <SelectItem value="Both">Both</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="yearsPlaying">Years Playing</Label>
+                      <Label htmlFor="lastName">Last Name</Label>
                       <Input
-                        id="yearsPlaying"
-                        type="number"
-                        value={profileData.yearsPlaying || ''}
-                        onChange={(e) => setProfileData(prev => ({
-                          ...prev,
-                          yearsPlaying: e.target.value ? parseInt(e.target.value) : null
-                        }))}
+                        id="lastName"
+                        value={profileData.lastName}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
                         disabled={!isEditing}
-                        placeholder="e.g. 5"
+                        placeholder="Last name"
                       />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="playingStyle">Playing Style</Label>
-                      <Select
-                        value={profileData.playingStyle}
-                        onValueChange={(value) => setProfileData(prev => ({ ...prev, playingStyle: value }))}
-                        disabled={!isEditing}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select style" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Baseline">Baseline</SelectItem>
-                          <SelectItem value="Serve & Volley">Serve & Volley</SelectItem>
-                          <SelectItem value="All-Court">All-Court</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="courtSurface">Preferred Court Surface</Label>
-                      <Select
-                        value={profileData.preferredCourtSurface}
-                        onValueChange={(value) => setProfileData(prev => ({ ...prev, preferredCourtSurface: value }))}
-                        disabled={!isEditing}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select surface" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Hard">Hard</SelectItem>
-                          <SelectItem value="Clay">Clay</SelectItem>
-                          <SelectItem value="Grass">Grass</SelectItem>
-                          <SelectItem value="Synthetic">Synthetic</SelectItem>
-                        </SelectContent>
-                      </Select>
                     </div>
                   </div>
 
                   <div>
-                    <Label htmlFor="bio">Bio</Label>
-                    <Textarea
-                      id="bio"
-                      value={profileData.bio}
-                      onChange={(e) => setProfileData(prev => ({ ...prev, bio: e.target.value }))}
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={profileData.email}
+                      disabled={true}
+                      placeholder="Email address"
+                      className="bg-gray-50"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="skillLevel">Skill Level</Label>
+                    <Select
+                      value={profileData.skillLevel}
+                      onValueChange={(value) => setProfileData(prev => ({ ...prev, skillLevel: value }))}
                       disabled={!isEditing}
-                      placeholder="Tell us about yourself and your tennis journey..."
-                      rows={4}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select skill level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Beginner">Beginner</SelectItem>
+                        <SelectItem value="Intermediate">Intermediate</SelectItem>
+                        <SelectItem value="Advanced">Advanced</SelectItem>
+                        <SelectItem value="Professional">Professional</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Contact & Address */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Contact & Address</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={profileData.phone}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
+                      disabled={!isEditing}
+                      placeholder="(123) 456-7890"
                     />
                   </div>
+
+                  <div>
+                    <Label htmlFor="streetAddress">Street Address</Label>
+                    <Input
+                      id="streetAddress"
+                      value={profileData.streetAddress}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, streetAddress: e.target.value }))}
+                      disabled={!isEditing}
+                      placeholder="123 Main Street"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-1">
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        value={profileData.city}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, city: e.target.value }))}
+                        disabled={!isEditing}
+                        placeholder="City"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="state">State</Label>
+                      <Input
+                        id="state"
+                        value={profileData.state}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, state: e.target.value }))}
+                        disabled={!isEditing}
+                        placeholder="State"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="zipCode">Zip Code</Label>
+                      <Input
+                        id="zipCode"
+                        value={profileData.zipCode}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, zipCode: e.target.value }))}
+                        disabled={!isEditing}
+                        placeholder="12345"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Bio */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Bio (Optional)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Label htmlFor="bio">About Me</Label>
+                  <Textarea
+                    id="bio"
+                    value={profileData.bio}
+                    onChange={(e) => setProfileData(prev => ({ ...prev, bio: e.target.value }))}
+                    disabled={!isEditing}
+                    placeholder="Tell us about yourself and your tennis journey..."
+                    rows={6}
+                  />
                 </CardContent>
               </Card>
 

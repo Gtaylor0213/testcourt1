@@ -11,6 +11,7 @@ export interface User {
   fullName: string;
   userType: 'player' | 'admin';
   memberFacilities?: string[]; // Array of facility IDs user belongs to
+  profileImageUrl?: string; // Profile image (base64 or URL)
   preferences?: {
     notifications: boolean;
     timezone: string;
@@ -103,12 +104,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await authApi.login(email, password);
 
       console.log('Login API result:', result);
-      console.log('Result data:', result.data);
-      console.log('User from result:', result.data?.user);
 
       if (result.success && result.data) {
-        setUser(result.data.user);
-        setAccessToken('token-' + result.data.user.id);
+        // The API wraps the response in a data object
+        const userData = result.data.user || result.data;
+        setUser(userData);
+        setAccessToken('token-' + userData.id);
         toast.success('Logged in successfully');
         return true;
       } else {

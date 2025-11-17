@@ -159,17 +159,27 @@ export async function registerUser(
  */
 export async function loginUser(email: string, password: string): Promise<LoginResult> {
   try {
-    // Get user with password hash
+    // Get user with password hash and profile image
     const result = await query(
       `SELECT
         u.id,
         u.email,
         u.password_hash as "passwordHash",
         u.full_name as "fullName",
+        u.first_name as "firstName",
+        u.last_name as "lastName",
+        u.address,
+        u.street_address as "streetAddress",
+        u.city,
+        u.state,
+        u.zip_code as "zipCode",
+        u.phone,
         u.user_type as "userType",
         u.created_at as "createdAt",
-        u.updated_at as "updatedAt"
+        u.updated_at as "updatedAt",
+        pp.profile_image_url as "profileImageUrl"
        FROM users u
+       LEFT JOIN player_profiles pp ON u.id = pp.user_id
        WHERE u.email = $1`,
       [email.toLowerCase()]
     );
@@ -233,6 +243,14 @@ export async function getUserById(userId: string): Promise<User | null> {
         id,
         email,
         full_name as "fullName",
+        first_name as "firstName",
+        last_name as "lastName",
+        address,
+        street_address as "streetAddress",
+        city,
+        state,
+        zip_code as "zipCode",
+        phone,
         user_type as "userType",
         created_at as "createdAt",
         updated_at as "updatedAt"

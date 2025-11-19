@@ -14,7 +14,6 @@ import { FindHittingPartner } from './components/FindHittingPartner';
 import { ForgotPassword } from './components/ForgotPassword';
 import { ResetPassword } from './components/ResetPassword';
 import { FacilityRegistration } from './components/FacilityRegistration';
-import { ViewSwitcher } from './components/ViewSwitcher';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { FacilityManagement } from './components/admin/FacilityManagement';
 import { CourtManagement } from './components/admin/CourtManagement';
@@ -31,7 +30,6 @@ function AppContent() {
   const [selectedClubId, setSelectedClubId] = useState<string>('');
   const [selectedClubName, setSelectedClubName] = useState<string>('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
-  const [viewMode, setViewMode] = useState<'player' | 'admin'>('player');
 
   const { user, loading, logout: authLogout } = useAuth();
 
@@ -155,47 +153,42 @@ function AppContent() {
 
   // Admin Navigation handlers
   const navigateToAdminDashboard = () => {
+    console.log('Navigating to admin-dashboard');
     setCurrentScreen('admin-dashboard');
   };
 
   const navigateToFacilityManagement = () => {
+    console.log('Navigating to facility-management');
     setCurrentScreen('facility-management');
   };
 
   const navigateToCourtManagement = () => {
+    console.log('Navigating to court-management');
     setCurrentScreen('court-management');
   };
 
   const navigateToBookingManagement = () => {
+    console.log('Navigating to booking-management');
     setCurrentScreen('booking-management');
   };
 
   const navigateToAdminBooking = () => {
+    console.log('Navigating to admin-booking');
     setCurrentScreen('admin-booking');
   };
 
   const navigateToMemberManagement = () => {
+    console.log('Navigating to member-management');
     setCurrentScreen('member-management');
   };
 
   const navigateToAnalytics = () => {
+    console.log('Navigating to analytics');
     setCurrentScreen('analytics');
-  };
-
-  const handleViewModeChange = (mode: 'player' | 'admin') => {
-    setViewMode(mode);
-    // Navigate to appropriate dashboard when switching modes
-    if (mode === 'admin') {
-      setCurrentScreen('admin-dashboard');
-    } else {
-      setCurrentScreen('court-calendar');
-    }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* View Switcher - Only show when logged in */}
-      {user && <ViewSwitcher viewMode={viewMode} onViewModeChange={handleViewModeChange} />}
 
       {currentScreen === 'login' && (
         <LoginPage
@@ -241,6 +234,13 @@ function AppContent() {
           onNavigateToClub={navigateToClub}
           onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToAdminDashboard={navigateToAdminDashboard}
+          onNavigateToFacilityManagement={navigateToFacilityManagement}
+          onNavigateToCourtManagement={navigateToCourtManagement}
+          onNavigateToBookingManagement={navigateToBookingManagement}
+          onNavigateToAdminBooking={navigateToAdminBooking}
+          onNavigateToMemberManagement={navigateToMemberManagement}
+          onNavigateToAnalytics={navigateToAnalytics}
           onLogout={handleLogout}
           selectedFacilityId={selectedFacilityId}
           onFacilityChange={handleFacilityChange}
@@ -257,6 +257,14 @@ function AppContent() {
           onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToBulletinBoard={navigateToBulletinBoard}
+          onNavigateToAdminDashboard={navigateToAdminDashboard}
+          onNavigateToFacilityManagement={navigateToFacilityManagement}
+          onNavigateToCourtManagement={navigateToCourtManagement}
+          onNavigateToBookingManagement={navigateToBookingManagement}
+          onNavigateToAdminBooking={navigateToAdminBooking}
+          onNavigateToMemberManagement={navigateToMemberManagement}
+          onNavigateToAnalytics={navigateToAnalytics}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
         />
@@ -268,8 +276,17 @@ function AppContent() {
           onLogout={handleLogout}
           onNavigateToProfile={navigateToProfile}
           onNavigateToPlayerDashboard={navigateToPlayerDashboard}
+          onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToBulletinBoard={navigateToBulletinBoard}
+          onNavigateToAdminDashboard={navigateToAdminDashboard}
+          onNavigateToFacilityManagement={navigateToFacilityManagement}
+          onNavigateToCourtManagement={navigateToCourtManagement}
+          onNavigateToBookingManagement={navigateToBookingManagement}
+          onNavigateToAdminBooking={navigateToAdminBooking}
+          onNavigateToMemberManagement={navigateToMemberManagement}
+          onNavigateToAnalytics={navigateToAnalytics}
           selectedFacilityId={selectedFacilityId}
           onFacilityChange={handleFacilityChange}
           sidebarCollapsed={sidebarCollapsed}
@@ -283,8 +300,17 @@ function AppContent() {
           onLogout={handleLogout}
           onNavigateToProfile={navigateToProfile}
           onNavigateToPlayerDashboard={navigateToPlayerDashboard}
+          onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToBulletinBoard={navigateToBulletinBoard}
+          onNavigateToAdminDashboard={navigateToAdminDashboard}
+          onNavigateToFacilityManagement={navigateToFacilityManagement}
+          onNavigateToCourtManagement={navigateToCourtManagement}
+          onNavigateToBookingManagement={navigateToBookingManagement}
+          onNavigateToAdminBooking={navigateToAdminBooking}
+          onNavigateToMemberManagement={navigateToMemberManagement}
+          onNavigateToAnalytics={navigateToAnalytics}
           selectedFacilityId={selectedFacilityId}
           onFacilityChange={handleFacilityChange}
           sidebarCollapsed={sidebarCollapsed}
@@ -302,6 +328,13 @@ function AppContent() {
           onNavigateToClub={navigateToClub}
           onNavigateToHittingPartner={navigateToHittingPartner}
           onNavigateToBulletinBoard={navigateToBulletinBoard}
+          onNavigateToAdminDashboard={navigateToAdminDashboard}
+          onNavigateToFacilityManagement={navigateToFacilityManagement}
+          onNavigateToCourtManagement={navigateToCourtManagement}
+          onNavigateToBookingManagement={navigateToBookingManagement}
+          onNavigateToAdminBooking={navigateToAdminBooking}
+          onNavigateToMemberManagement={navigateToMemberManagement}
+          onNavigateToAnalytics={navigateToAnalytics}
           selectedFacilityId={selectedFacilityId}
           onFacilityChange={handleFacilityChange}
           sidebarCollapsed={sidebarCollapsed}
@@ -320,6 +353,13 @@ function AppContent() {
           onNavigateToClub={navigateToClub}
           onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToAdminDashboard={navigateToAdminDashboard}
+          onNavigateToFacilityManagement={navigateToFacilityManagement}
+          onNavigateToCourtManagement={navigateToCourtManagement}
+          onNavigateToBookingManagement={navigateToBookingManagement}
+          onNavigateToAdminBooking={navigateToAdminBooking}
+          onNavigateToMemberManagement={navigateToMemberManagement}
+          onNavigateToAnalytics={navigateToAnalytics}
           selectedFacilityId={selectedFacilityId}
           onFacilityChange={handleFacilityChange}
           sidebarCollapsed={sidebarCollapsed}
@@ -337,6 +377,15 @@ function AppContent() {
           onNavigateToPlayerDashboard={navigateToPlayerDashboard}
           onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
+          onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToBulletinBoard={navigateToBulletinBoard}
+          onNavigateToAdminDashboard={navigateToAdminDashboard}
+          onNavigateToFacilityManagement={navigateToFacilityManagement}
+          onNavigateToCourtManagement={navigateToCourtManagement}
+          onNavigateToBookingManagement={navigateToBookingManagement}
+          onNavigateToAdminBooking={navigateToAdminBooking}
+          onNavigateToMemberManagement={navigateToMemberManagement}
+          onNavigateToAnalytics={navigateToAnalytics}
           selectedFacilityId={selectedFacilityId}
           onFacilityChange={handleFacilityChange}
           sidebarCollapsed={sidebarCollapsed}
@@ -354,6 +403,7 @@ function AppContent() {
           onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToAdminDashboard={navigateToAdminDashboard}
           onNavigateToFacilityManagement={navigateToFacilityManagement}
           onNavigateToCourtManagement={navigateToCourtManagement}
@@ -375,6 +425,7 @@ function AppContent() {
           onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToAdminDashboard={navigateToAdminDashboard}
           onNavigateToFacilityManagement={navigateToFacilityManagement}
           onNavigateToCourtManagement={navigateToCourtManagement}
@@ -396,6 +447,7 @@ function AppContent() {
           onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToAdminDashboard={navigateToAdminDashboard}
           onNavigateToFacilityManagement={navigateToFacilityManagement}
           onNavigateToCourtManagement={navigateToCourtManagement}
@@ -417,6 +469,7 @@ function AppContent() {
           onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToAdminDashboard={navigateToAdminDashboard}
           onNavigateToFacilityManagement={navigateToFacilityManagement}
           onNavigateToCourtManagement={navigateToCourtManagement}
@@ -438,6 +491,7 @@ function AppContent() {
           onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToAdminDashboard={navigateToAdminDashboard}
           onNavigateToFacilityManagement={navigateToFacilityManagement}
           onNavigateToCourtManagement={navigateToCourtManagement}
@@ -459,6 +513,7 @@ function AppContent() {
           onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToAdminDashboard={navigateToAdminDashboard}
           onNavigateToFacilityManagement={navigateToFacilityManagement}
           onNavigateToCourtManagement={navigateToCourtManagement}
@@ -480,6 +535,7 @@ function AppContent() {
           onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToAdminDashboard={navigateToAdminDashboard}
           onNavigateToFacilityManagement={navigateToFacilityManagement}
           onNavigateToCourtManagement={navigateToCourtManagement}

@@ -20,6 +20,7 @@ import playerProfileRoutes from './routes/playerProfile';
 import hittingPartnerRoutes from './routes/hittingPartner';
 import bulletinBoardRoutes from './routes/bulletinBoard';
 import bookingRoutes from './routes/bookings';
+import adminRoutes from './routes/admin';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -49,6 +50,7 @@ app.use('/api/player-profile', playerProfileRoutes);
 app.use('/api/hitting-partner', hittingPartnerRoutes);
 app.use('/api/bulletin-board', bulletinBoardRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

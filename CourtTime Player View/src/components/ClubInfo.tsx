@@ -36,7 +36,7 @@ interface FacilityData {
   phone: string;
   email: string;
   website: string;
-  operatingHours: string;
+  operatingHours: any;
   memberCount?: number;
   courts: {
     id: string;
@@ -109,6 +109,18 @@ export function ClubInfo({
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatOperatingHours = (hours: any): string => {
+    if (!hours || typeof hours !== 'object') return 'Hours not available';
+
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const formattedDays = days
+      .filter(day => hours[day])
+      .map(day => `${day.charAt(0).toUpperCase() + day.slice(1)}: ${hours[day]}`)
+      .join(', ');
+
+    return formattedDays || 'Hours not available';
   };
 
   if (loading) {
@@ -302,10 +314,23 @@ export function ClubInfo({
                   </div>
                 )}
                 {facility.operatingHours && (
-                  <div className="flex items-center">
-                    <Clock className="h-4 w-4 text-gray-400 mr-3" />
+                  <div className="flex items-start">
+                    <Clock className="h-4 w-4 text-gray-400 mr-3 mt-1" />
                     <div>
-                      <p>{facility.operatingHours}</p>
+                      <p className="text-sm font-medium text-gray-600 mb-2">Operating Hours</p>
+                      {typeof facility.operatingHours === 'object' ? (
+                        <div className="space-y-1">
+                          {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
+                            facility.operatingHours[day] && (
+                              <div key={day} className="text-sm">
+                                <span className="font-medium capitalize">{day}:</span> {facility.operatingHours[day]}
+                              </div>
+                            )
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm">{facility.operatingHours}</p>
+                      )}
                     </div>
                   </div>
                 )}

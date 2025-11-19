@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UnifiedSidebar } from '../UnifiedSidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -8,6 +8,9 @@ import { Plus, Edit, Trash2, Save, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { Switch } from '../ui/switch';
+import { useAuth } from '../../contexts/AuthContext';
+import { facilitiesApi, adminApi } from '../../api/client';
+import { toast } from 'sonner';
 
 interface CourtManagementProps {
   onBack: () => void;
@@ -17,6 +20,7 @@ interface CourtManagementProps {
   onNavigateToCalendar: () => void;
   onNavigateToClub?: (clubId: string) => void;
   onNavigateToHittingPartner?: () => void;
+  onNavigateToBulletinBoard?: () => void;
   onNavigateToAdminDashboard?: () => void;
   onNavigateToFacilityManagement?: () => void;
   onNavigateToCourtManagement?: () => void;
@@ -31,11 +35,12 @@ interface CourtManagementProps {
 interface Court {
   id: string;
   name: string;
-  type: string;
-  surface: string;
+  courtNumber: number;
+  courtType: string;
+  surfaceType: string;
   isIndoor: boolean;
   hasLights: boolean;
-  status: 'Active' | 'Maintenance' | 'Inactive';
+  status: 'active' | 'maintenance' | 'inactive';
 }
 
 export function CourtManagement({
@@ -45,6 +50,7 @@ export function CourtManagement({
   onNavigateToCalendar,
   onNavigateToClub = () => {},
   onNavigateToHittingPartner = () => {},
+  onNavigateToBulletinBoard = () => {},
   onNavigateToAdminDashboard = () => {},
   onNavigateToFacilityManagement = () => {},
   onNavigateToCourtManagement = () => {},
@@ -55,24 +61,54 @@ export function CourtManagement({
   sidebarCollapsed = false,
   onToggleSidebar
 }: CourtManagementProps) {
-  const [courts, setCourts] = useState<Court[]>([
-    { id: '1', name: 'Court 1', type: 'Tennis', surface: 'Hard', isIndoor: false, hasLights: true, status: 'Active' },
-    { id: '2', name: 'Court 2', type: 'Tennis', surface: 'Hard', isIndoor: false, hasLights: true, status: 'Active' },
-    { id: '3', name: 'Court 3', type: 'Tennis', surface: 'Clay', isIndoor: true, hasLights: true, status: 'Active' },
-    { id: '4', name: 'Court 4', type: 'Pickleball', surface: 'Hard', isIndoor: false, hasLights: false, status: 'Maintenance' },
-  ]);
+  const { user } = useAuth();
+  const [courts, setCourts] = useState<Court[]>([]);
   const [editingCourt, setEditingCourt] = useState<Court | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const currentFacilityId = user?.memberFacilities?.[0];
+
+  useEffect(() => {
+    if (currentFacilityId) {
+      loadCourts();
+    }
+  }, [currentFacilityId]);
+
+  const loadCourts = async () => {
+    if (!currentFacilityId) {
+      toast.error('No facility selected');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await facilitiesApi.getCourts(currentFacilityId);
+
+      if (response.success && response.data?.courts) {
+        setCourts(response.data.courts);
+      } else {
+        toast.error(response.error || 'Failed to load courts');
+      }
+    } catch (error: any) {
+      console.error('Error loading courts:', error);
+      toast.error('Failed to load courts');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddNew = () => {
     setEditingCourt({
-      id: `new-${Date.now()}`,
+      id: '',
       name: '',
-      type: 'Tennis',
-      surface: 'Hard',
+      courtNumber: courts.length + 1,
+      courtType: 'Tennis',
+      surfaceType: 'Hard Court',
       isIndoor: false,
       hasLights: false,
-      status: 'Active',
+      status: 'active',
     });
     setIsAddingNew(true);
   };
@@ -82,16 +118,35 @@ export function CourtManagement({
     setIsAddingNew(false);
   };
 
-  const handleSave = () => {
-    if (!editingCourt) return;
+  const handleSave = async () => {
+    if (!editingCourt || !currentFacilityId) return;
 
-    if (isAddingNew) {
-      setCourts([...courts, editingCourt]);
-    } else {
-      setCourts(courts.map(c => c.id === editingCourt.id ? editingCourt : c));
+    try {
+      setSaving(true);
+      const response = await adminApi.updateCourt(editingCourt.id, {
+        name: editingCourt.name,
+        courtNumber: editingCourt.courtNumber,
+        surfaceType: editingCourt.surfaceType,
+        courtType: editingCourt.courtType,
+        isIndoor: editingCourt.isIndoor,
+        hasLights: editingCourt.hasLights,
+        status: editingCourt.status,
+      });
+
+      if (response.success) {
+        toast.success('Court updated successfully');
+        setEditingCourt(null);
+        setIsAddingNew(false);
+        await loadCourts();
+      } else {
+        toast.error(response.error || 'Failed to update court');
+      }
+    } catch (error: any) {
+      console.error('Error saving court:', error);
+      toast.error('Failed to update court');
+    } finally {
+      setSaving(false);
     }
-    setEditingCourt(null);
-    setIsAddingNew(false);
   };
 
   const handleCancel = () => {
@@ -99,20 +154,43 @@ export function CourtManagement({
     setIsAddingNew(false);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this court?')) {
-      setCourts(courts.filter(c => c.id !== id));
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this court?')) return;
+
+    try {
+      const response = await adminApi.updateCourt(id, { status: 'inactive' });
+      if (response.success) {
+        toast.success('Court deactivated successfully');
+        await loadCourts();
+      } else {
+        toast.error(response.error || 'Failed to deactivate court');
+      }
+    } catch (error: any) {
+      console.error('Error deactivating court:', error);
+      toast.error('Failed to deactivate court');
     }
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Active': return 'bg-green-100 text-green-800';
-      case 'Maintenance': return 'bg-yellow-100 text-yellow-800';
-      case 'Inactive': return 'bg-gray-100 text-gray-800';
+    switch (status.toLowerCase()) {
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'maintenance': return 'bg-yellow-100 text-yellow-800';
+      case 'inactive': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  const formatStatus = (status: string) => {
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -123,6 +201,7 @@ export function CourtManagement({
         onNavigateToCalendar={onNavigateToCalendar}
         onNavigateToClub={onNavigateToClub}
         onNavigateToHittingPartner={onNavigateToHittingPartner}
+        onNavigateToBulletinBoard={onNavigateToBulletinBoard}
         onNavigateToAdminDashboard={onNavigateToAdminDashboard}
         onNavigateToFacilityManagement={onNavigateToFacilityManagement}
         onNavigateToCourtManagement={onNavigateToCourtManagement}
@@ -140,7 +219,7 @@ export function CourtManagement({
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Court Management</h1>
-            <Button onClick={handleAddNew} disabled={editingCourt !== null}>
+            <Button onClick={handleAddNew} disabled={editingCourt !== null || isAddingNew}>
               <Plus className="h-4 w-4 mr-2" />
               Add New Court
             </Button>
@@ -165,10 +244,19 @@ export function CourtManagement({
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="courtNumber">Court Number</Label>
+                    <Input
+                      id="courtNumber"
+                      type="number"
+                      value={editingCourt.courtNumber}
+                      onChange={(e) => setEditingCourt({ ...editingCourt, courtNumber: parseInt(e.target.value) || 1 })}
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="courtType">Court Type</Label>
                     <Select
-                      value={editingCourt.type}
-                      onValueChange={(value) => setEditingCourt({ ...editingCourt, type: value })}
+                      value={editingCourt.courtType}
+                      onValueChange={(value) => setEditingCourt({ ...editingCourt, courtType: value })}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -176,23 +264,23 @@ export function CourtManagement({
                       <SelectContent>
                         <SelectItem value="Tennis">Tennis</SelectItem>
                         <SelectItem value="Pickleball">Pickleball</SelectItem>
-                        <SelectItem value="Dual">Dual Purpose</SelectItem>
+                        <SelectItem value="Dual Purpose">Dual Purpose</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="courtSurface">Surface Type</Label>
                     <Select
-                      value={editingCourt.surface}
-                      onValueChange={(value) => setEditingCourt({ ...editingCourt, surface: value })}
+                      value={editingCourt.surfaceType}
+                      onValueChange={(value) => setEditingCourt({ ...editingCourt, surfaceType: value })}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Hard">Hard Court</SelectItem>
-                        <SelectItem value="Clay">Clay Court</SelectItem>
-                        <SelectItem value="Grass">Grass Court</SelectItem>
+                        <SelectItem value="Hard Court">Hard Court</SelectItem>
+                        <SelectItem value="Clay Court">Clay Court</SelectItem>
+                        <SelectItem value="Grass Court">Grass Court</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -200,15 +288,15 @@ export function CourtManagement({
                     <Label htmlFor="courtStatus">Status</Label>
                     <Select
                       value={editingCourt.status}
-                      onValueChange={(value: 'Active' | 'Maintenance' | 'Inactive') => setEditingCourt({ ...editingCourt, status: value })}
+                      onValueChange={(value: 'active' | 'maintenance' | 'inactive') => setEditingCourt({ ...editingCourt, status: value })}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Active">Active</SelectItem>
-                        <SelectItem value="Maintenance">Maintenance</SelectItem>
-                        <SelectItem value="Inactive">Inactive</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="maintenance">Maintenance</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -230,11 +318,11 @@ export function CourtManagement({
                   </div>
                 </div>
                 <div className="flex gap-2 mt-6">
-                  <Button onClick={handleSave}>
+                  <Button onClick={handleSave} disabled={saving}>
                     <Save className="h-4 w-4 mr-2" />
-                    Save Court
+                    {saving ? 'Saving...' : 'Save Court'}
                   </Button>
-                  <Button variant="outline" onClick={handleCancel}>
+                  <Button variant="outline" onClick={handleCancel} disabled={saving}>
                     <X className="h-4 w-4 mr-2" />
                     Cancel
                   </Button>
@@ -252,11 +340,12 @@ export function CourtManagement({
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-semibold">{court.name}</h3>
-                        <Badge className={getStatusColor(court.status)}>{court.status}</Badge>
+                        <Badge className={getStatusColor(court.status)}>{formatStatus(court.status)}</Badge>
                       </div>
                       <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                        <span>Type: <strong>{court.type}</strong></span>
-                        <span>Surface: <strong>{court.surface}</strong></span>
+                        <span>Court #: <strong>{court.courtNumber}</strong></span>
+                        <span>Type: <strong>{court.courtType}</strong></span>
+                        <span>Surface: <strong>{court.surfaceType}</strong></span>
                         <span>{court.isIndoor ? 'Indoor' : 'Outdoor'}</span>
                         <span>{court.hasLights ? 'With Lights' : 'No Lights'}</span>
                       </div>

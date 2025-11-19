@@ -353,3 +353,73 @@ export const bookingApi = {
     });
   },
 };
+
+// Admin API
+export const adminApi = {
+  // Dashboard
+  getDashboardStats: async (facilityId: string) => {
+    return apiRequest(`/api/admin/dashboard/${facilityId}`);
+  },
+
+  // Facility Management
+  updateFacility: async (facilityId: string, data: {
+    name?: string;
+    type?: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+    description?: string;
+    amenities?: string[];
+    operatingHours?: any;
+  }) => {
+    return apiRequest(`/api/admin/facilities/${facilityId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Court Management
+  updateCourt: async (courtId: string, data: {
+    name?: string;
+    courtNumber?: number;
+    surfaceType?: string;
+    courtType?: string;
+    isIndoor?: boolean;
+    hasLights?: boolean;
+    status?: string;
+  }) => {
+    return apiRequest(`/api/admin/courts/${courtId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Booking Management
+  getBookings: async (facilityId: string, filters?: {
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+    courtId?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.courtId) params.append('courtId', filters.courtId);
+
+    const queryString = params.toString();
+    return apiRequest(`/api/admin/bookings/${facilityId}${queryString ? `?${queryString}` : ''}`);
+  },
+
+  updateBookingStatus: async (bookingId: string, status: string) => {
+    return apiRequest(`/api/admin/bookings/${bookingId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  // Analytics
+  getAnalytics: async (facilityId: string, period?: number) => {
+    return apiRequest(`/api/admin/analytics/${facilityId}?period=${period || 30}`);
+  },
+};

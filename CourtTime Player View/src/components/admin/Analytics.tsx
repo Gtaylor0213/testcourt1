@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UnifiedSidebar } from '../UnifiedSidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Calendar, TrendingUp, Users, DollarSign, Download, Filter } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Label } from '../ui/label';
+import { useAuth } from '../../contexts/AuthContext';
+import { adminApi } from '../../api/client';
+import { toast } from 'sonner';
 
 interface AnalyticsProps {
   onBack: () => void;
@@ -14,6 +17,7 @@ interface AnalyticsProps {
   onNavigateToCalendar: () => void;
   onNavigateToClub?: (clubId: string) => void;
   onNavigateToHittingPartner?: () => void;
+  onNavigateToBulletinBoard?: () => void;
   onNavigateToAdminDashboard?: () => void;
   onNavigateToFacilityManagement?: () => void;
   onNavigateToCourtManagement?: () => void;
@@ -25,6 +29,13 @@ interface AnalyticsProps {
   onToggleSidebar?: () => void;
 }
 
+interface AnalyticsData {
+  bookingsTrend: Array<{ date: string; bookings: number }>;
+  peakHours: Array<{ hour: number; bookings: number }>;
+  courtUsage: Array<{ court_name: string; court_number: number; bookings: number }>;
+  memberGrowth: Array<{ date: string; new_members: number }>;
+}
+
 export function Analytics({
   onLogout,
   onNavigateToProfile,
@@ -32,6 +43,7 @@ export function Analytics({
   onNavigateToCalendar,
   onNavigateToClub = () => {},
   onNavigateToHittingPartner = () => {},
+  onNavigateToBulletinBoard = () => {},
   onNavigateToAdminDashboard = () => {},
   onNavigateToFacilityManagement = () => {},
   onNavigateToCourtManagement = () => {},
@@ -42,11 +54,110 @@ export function Analytics({
   sidebarCollapsed = false,
   onToggleSidebar
 }: AnalyticsProps) {
-  const [timeRange, setTimeRange] = useState('month');
+  const { user } = useAuth();
+  const [timeRange, setTimeRange] = useState('30');
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
+    bookingsTrend: [],
+    peakHours: [],
+    courtUsage: [],
+    memberGrowth: [],
+  });
+  const [loading, setLoading] = useState(true);
+
+  const currentFacilityId = user?.memberFacilities?.[0];
+
+  useEffect(() => {
+    if (currentFacilityId) {
+      loadAnalytics();
+    }
+  }, [currentFacilityId, timeRange]);
+
+  const loadAnalytics = async () => {
+    if (!currentFacilityId) {
+      toast.error('No facility selected');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await adminApi.getAnalytics(currentFacilityId, parseInt(timeRange));
+
+      if (response.success && response.data) {
+        setAnalyticsData(response.data);
+      } else {
+        toast.error(response.error || 'Failed to load analytics');
+      }
+    } catch (error: any) {
+      console.error('Error loading analytics:', error);
+      toast.error('Failed to load analytics');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleExportReport = () => {
-    alert('Exporting report... (Feature to be implemented)');
+    toast.info('Export report feature coming soon');
   };
+
+  const getTotalBookings = () => {
+    return analyticsData.bookingsTrend.reduce((sum, day) => sum + day.bookings, 0);
+  };
+
+  const getTotalNewMembers = () => {
+    return analyticsData.memberGrowth.reduce((sum, day) => sum + day.new_members, 0);
+  };
+
+  const getCourtUtilization = () => {
+    const totalBookings = getTotalBookings();
+    const totalCourts = analyticsData.courtUsage.length;
+    const daysInPeriod = parseInt(timeRange);
+    const hoursPerDay = 14; // Assuming 14 operating hours per day
+    const maxPossibleBookings = totalCourts * daysInPeriod * hoursPerDay;
+
+    if (maxPossibleBookings === 0) return 0;
+    return Math.round((totalBookings / maxPossibleBookings) * 100);
+  };
+
+  const formatHour = (hour: number) => {
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:00 ${ampm}`;
+  };
+
+  const formatTimeRange = (hour: number) => {
+    const nextHour = hour + 2;
+    return `${formatHour(hour)} - ${formatHour(nextHour)}`;
+  };
+
+  const getTopPeakHours = () => {
+    return analyticsData.peakHours
+      .sort((a, b) => b.bookings - a.bookings)
+      .slice(0, 4);
+  };
+
+  const getTopCourts = () => {
+    const maxBookings = Math.max(...analyticsData.courtUsage.map(c => c.bookings), 1);
+    return analyticsData.courtUsage
+      .sort((a, b) => b.bookings - a.bookings)
+      .slice(0, 4)
+      .map(court => ({
+        court: court.court_name,
+        bookings: court.bookings,
+        percent: Math.round((court.bookings / maxBookings) * 100)
+      }));
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const topPeakHours = getTopPeakHours();
+  const topCourts = getTopCourts();
+  const maxPeakBookings = Math.max(...topPeakHours.map(p => p.bookings), 1);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -57,6 +168,7 @@ export function Analytics({
         onNavigateToCalendar={onNavigateToCalendar}
         onNavigateToClub={onNavigateToClub}
         onNavigateToHittingPartner={onNavigateToHittingPartner}
+        onNavigateToBulletinBoard={onNavigateToBulletinBoard}
         onNavigateToAdminDashboard={onNavigateToAdminDashboard}
         onNavigateToFacilityManagement={onNavigateToFacilityManagement}
         onNavigateToCourtManagement={onNavigateToCourtManagement}
@@ -91,10 +203,10 @@ export function Analytics({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="week">Last 7 Days</SelectItem>
-                    <SelectItem value="month">Last 30 Days</SelectItem>
-                    <SelectItem value="quarter">Last 3 Months</SelectItem>
-                    <SelectItem value="year">Last Year</SelectItem>
+                    <SelectItem value="7">Last 7 Days</SelectItem>
+                    <SelectItem value="30">Last 30 Days</SelectItem>
+                    <SelectItem value="90">Last 3 Months</SelectItem>
+                    <SelectItem value="365">Last Year</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -109,10 +221,9 @@ export function Analytics({
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">247</div>
-                <p className="text-xs text-green-600 flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  +12% from previous period
+                <div className="text-2xl font-bold">{getTotalBookings()}</div>
+                <p className="text-xs text-gray-600">
+                  In the last {timeRange} days
                 </p>
               </CardContent>
             </Card>
@@ -123,38 +234,35 @@ export function Analytics({
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">78%</div>
-                <p className="text-xs text-green-600 flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  +5% from previous period
+                <div className="text-2xl font-bold">{getCourtUtilization()}%</div>
+                <p className="text-xs text-gray-600">
+                  Average utilization rate
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Members</CardTitle>
+                <CardTitle className="text-sm font-medium">New Members</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">156</div>
-                <p className="text-xs text-green-600 flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  +8 new members
+                <div className="text-2xl font-bold">{getTotalNewMembers()}</div>
+                <p className="text-xs text-gray-600">
+                  In the last {timeRange} days
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Revenue</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Courts</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">$12,450</div>
-                <p className="text-xs text-green-600 flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  +15% from previous period
+                <div className="text-2xl font-bold">{analyticsData.courtUsage.length}</div>
+                <p className="text-xs text-gray-600">
+                  Active courts
                 </p>
               </CardContent>
             </Card>
@@ -165,32 +273,69 @@ export function Analytics({
             <Card>
               <CardHeader>
                 <CardTitle>Booking Trends</CardTitle>
-                <CardDescription>Daily bookings over time</CardDescription>
+                <CardDescription>Daily bookings over the selected period</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-64 flex items-center justify-center bg-gray-100 rounded-lg">
-                  <div className="text-center text-gray-500">
-                    <TrendingUp className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                    <p>Chart visualization will be displayed here</p>
-                    <p className="text-sm mt-1">(Integration with charting library needed)</p>
+                {analyticsData.bookingsTrend.length > 0 ? (
+                  <div className="space-y-2">
+                    {analyticsData.bookingsTrend.slice(-14).map((day, index) => {
+                      const maxBookings = Math.max(...analyticsData.bookingsTrend.map(d => d.bookings), 1);
+                      const percent = Math.round((day.bookings / maxBookings) * 100);
+                      const date = new Date(day.date);
+                      const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+                      return (
+                        <div key={index}>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="font-medium">{formattedDate}</span>
+                            <span className="text-gray-600">{day.bookings} bookings</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-600 h-2 rounded-full transition-all"
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center bg-gray-100 rounded-lg">
+                    <p className="text-gray-500">No booking data available</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Court Usage by Type</CardTitle>
-                <CardDescription>Breakdown of court bookings</CardDescription>
+                <CardTitle>Member Growth</CardTitle>
+                <CardDescription>New member sign-ups over time</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-64 flex items-center justify-center bg-gray-100 rounded-lg">
-                  <div className="text-center text-gray-500">
-                    <Calendar className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                    <p>Pie chart will be displayed here</p>
-                    <p className="text-sm mt-1">(Integration with charting library needed)</p>
+                {analyticsData.memberGrowth.length > 0 ? (
+                  <div className="space-y-2">
+                    {analyticsData.memberGrowth.map((day, index) => {
+                      const date = new Date(day.date);
+                      const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+                      return (
+                        <div key={index} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
+                          <span className="text-sm font-medium">{formattedDate}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">+{day.new_members} members</span>
+                            <Users className="h-4 w-4 text-green-600" />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center bg-gray-100 rounded-lg">
+                    <p className="text-gray-500">No member growth data available</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -203,27 +348,31 @@ export function Analytics({
                 <CardDescription>Most popular booking times</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {[
-                    { time: '6:00 PM - 8:00 PM', bookings: 45, percent: 95 },
-                    { time: '4:00 PM - 6:00 PM', bookings: 38, percent: 80 },
-                    { time: '8:00 AM - 10:00 AM', bookings: 32, percent: 67 },
-                    { time: '10:00 AM - 12:00 PM', bookings: 28, percent: 58 },
-                  ].map((slot, index) => (
-                    <div key={index}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="font-medium">{slot.time}</span>
-                        <span className="text-gray-600">{slot.bookings} bookings</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: `${slot.percent}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {topPeakHours.length > 0 ? (
+                  <div className="space-y-3">
+                    {topPeakHours.map((slot, index) => {
+                      const percent = Math.round((slot.bookings / maxPeakBookings) * 100);
+                      return (
+                        <div key={index}>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="font-medium">{formatTimeRange(slot.hour)}</span>
+                            <span className="text-gray-600">{slot.bookings} bookings</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-600 h-2 rounded-full"
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    No peak hours data available
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -233,27 +382,28 @@ export function Analytics({
                 <CardDescription>Most booked courts this period</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {[
-                    { court: 'Court 1', bookings: 52, percent: 100 },
-                    { court: 'Court 3', bookings: 48, percent: 92 },
-                    { court: 'Court 2', bookings: 44, percent: 84 },
-                    { court: 'Court 4', bookings: 38, percent: 73 },
-                  ].map((court, index) => (
-                    <div key={index}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="font-medium">{court.court}</span>
-                        <span className="text-gray-600">{court.bookings} bookings</span>
+                {topCourts.length > 0 ? (
+                  <div className="space-y-3">
+                    {topCourts.map((court, index) => (
+                      <div key={index}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="font-medium">{court.court}</span>
+                          <span className="text-gray-600">{court.bookings} bookings</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-green-600 h-2 rounded-full"
+                            style={{ width: `${court.percent}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-green-600 h-2 rounded-full"
-                          style={{ width: `${court.percent}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    No court usage data available
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

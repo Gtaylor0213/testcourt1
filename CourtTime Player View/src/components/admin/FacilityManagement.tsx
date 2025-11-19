@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UnifiedSidebar } from '../UnifiedSidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Building2, Clock, MapPin, Phone, Mail, Globe, Save, Edit, X } from 'lucide-react';
+import { Building2, Clock, MapPin, Phone, Mail, Save, Edit, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { useAuth } from '../../contexts/AuthContext';
+import { facilitiesApi, adminApi } from '../../api/client';
+import { toast } from 'sonner';
 
 interface FacilityManagementProps {
   onBack: () => void;
@@ -16,6 +19,7 @@ interface FacilityManagementProps {
   onNavigateToCalendar: () => void;
   onNavigateToClub?: (clubId: string) => void;
   onNavigateToHittingPartner?: () => void;
+  onNavigateToBulletinBoard?: () => void;
   onNavigateToAdminDashboard?: () => void;
   onNavigateToFacilityManagement?: () => void;
   onNavigateToCourtManagement?: () => void;
@@ -27,6 +31,17 @@ interface FacilityManagementProps {
   onToggleSidebar?: () => void;
 }
 
+interface FacilityData {
+  name: string;
+  type: string;
+  address: string;
+  phone: string;
+  email: string;
+  description: string;
+  amenities: string[];
+  operatingHours: any;
+}
+
 export function FacilityManagement({
   onLogout,
   onNavigateToProfile,
@@ -34,6 +49,7 @@ export function FacilityManagement({
   onNavigateToCalendar,
   onNavigateToClub = () => {},
   onNavigateToHittingPartner = () => {},
+  onNavigateToBulletinBoard = () => {},
   onNavigateToAdminDashboard = () => {},
   onNavigateToFacilityManagement = () => {},
   onNavigateToCourtManagement = () => {},
@@ -44,34 +60,108 @@ export function FacilityManagement({
   sidebarCollapsed = false,
   onToggleSidebar
 }: FacilityManagementProps) {
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [facilityData, setFacilityData] = useState({
-    name: 'Riverside Tennis Club',
-    type: 'Tennis Club',
-    address: '123 Tennis Lane',
-    city: 'San Francisco',
-    state: 'CA',
-    zip: '94102',
-    phone: '(415) 555-0100',
-    email: 'info@riversidetennis.com',
-    website: 'www.riversidetennis.com',
-    description: 'A premier tennis facility featuring 8 outdoor courts with professional-grade surfaces.',
-    weekdayHoursStart: '06:00',
-    weekdayHoursEnd: '22:00',
-    weekendHoursStart: '07:00',
-    weekendHoursEnd: '21:00',
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [originalData, setOriginalData] = useState<FacilityData | null>(null);
+  const [facilityData, setFacilityData] = useState<FacilityData>({
+    name: '',
+    type: '',
+    address: '',
+    phone: '',
+    email: '',
+    description: '',
+    amenities: [],
+    operatingHours: {},
   });
 
-  const handleSave = () => {
-    // TODO: Implement save to database
-    console.log('Saving facility data:', facilityData);
-    setIsEditing(false);
+  const currentFacilityId = user?.memberFacilities?.[0];
+
+  useEffect(() => {
+    if (currentFacilityId) {
+      loadFacilityData();
+    }
+  }, [currentFacilityId]);
+
+  const loadFacilityData = async () => {
+    if (!currentFacilityId) {
+      toast.error('No facility selected');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await facilitiesApi.getById(currentFacilityId);
+
+      if (response.success && response.data?.facility) {
+        const facility = response.data.facility;
+        const data: FacilityData = {
+          name: facility.name || '',
+          type: facility.type || 'Tennis Facility',
+          address: facility.address || '',
+          phone: facility.phone || '',
+          email: facility.email || '',
+          description: facility.description || '',
+          amenities: facility.amenities || [],
+          operatingHours: facility.operatingHours || {},
+        };
+        setFacilityData(data);
+        setOriginalData(data);
+      } else {
+        toast.error(response.error || 'Failed to load facility data');
+      }
+    } catch (error: any) {
+      console.error('Error loading facility:', error);
+      toast.error('Failed to load facility data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!currentFacilityId) return;
+
+    try {
+      setSaving(true);
+      const response = await adminApi.updateFacility(currentFacilityId, facilityData);
+
+      if (response.success) {
+        toast.success('Facility updated successfully');
+        setIsEditing(false);
+        setOriginalData(facilityData);
+      } else {
+        toast.error(response.error || 'Failed to update facility');
+      }
+    } catch (error: any) {
+      console.error('Error saving facility:', error);
+      toast.error('Failed to update facility');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = () => {
-    // TODO: Reset to original data
+    if (originalData) {
+      setFacilityData(originalData);
+    }
     setIsEditing(false);
   };
+
+  const getHoursDisplay = (day: string) => {
+    if (!facilityData.operatingHours || !facilityData.operatingHours[day]) {
+      return 'Not set';
+    }
+    return facilityData.operatingHours[day];
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -82,6 +172,7 @@ export function FacilityManagement({
         onNavigateToCalendar={onNavigateToCalendar}
         onNavigateToClub={onNavigateToClub}
         onNavigateToHittingPartner={onNavigateToHittingPartner}
+        onNavigateToBulletinBoard={onNavigateToBulletinBoard}
         onNavigateToAdminDashboard={onNavigateToAdminDashboard}
         onNavigateToFacilityManagement={onNavigateToFacilityManagement}
         onNavigateToCourtManagement={onNavigateToCourtManagement}
@@ -106,13 +197,13 @@ export function FacilityManagement({
               </Button>
             ) : (
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handleCancel}>
+                <Button variant="outline" onClick={handleCancel} disabled={saving}>
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
-                <Button onClick={handleSave}>
+                <Button onClick={handleSave} disabled={saving}>
                   <Save className="h-4 w-4 mr-2" />
-                  Save Changes
+                  {saving ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
             )}
@@ -150,6 +241,7 @@ export function FacilityManagement({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Tennis Club">Tennis Club</SelectItem>
+                      <SelectItem value="Tennis Facility">Tennis Facility</SelectItem>
                       <SelectItem value="Pickleball Club">Pickleball Club</SelectItem>
                       <SelectItem value="Multi-Sport Club">Multi-Sport Club</SelectItem>
                       <SelectItem value="HOA Community">HOA Community</SelectItem>
@@ -170,18 +262,18 @@ export function FacilityManagement({
               </CardContent>
             </Card>
 
-            {/* Location Information */}
+            {/* Location & Contact Information */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <MapPin className="h-5 w-5" />
-                  Location
+                  Location & Contact
                 </CardTitle>
-                <CardDescription>Facility address and location details</CardDescription>
+                <CardDescription>Address and contact details</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="address">Street Address</Label>
+                  <Label htmlFor="address">Address</Label>
                   <Input
                     id="address"
                     value={facilityData.address}
@@ -189,49 +281,6 @@ export function FacilityManagement({
                     disabled={!isEditing}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="city">City</Label>
-                    <Input
-                      id="city"
-                      value={facilityData.city}
-                      onChange={(e) => setFacilityData({ ...facilityData, city: e.target.value })}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="state">State</Label>
-                    <Input
-                      id="state"
-                      value={facilityData.state}
-                      onChange={(e) => setFacilityData({ ...facilityData, state: e.target.value })}
-                      disabled={!isEditing}
-                      maxLength={2}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="zip">ZIP Code</Label>
-                  <Input
-                    id="zip"
-                    value={facilityData.zip}
-                    onChange={(e) => setFacilityData({ ...facilityData, zip: e.target.value })}
-                    disabled={!isEditing}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Contact Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Phone className="h-5 w-5" />
-                  Contact Information
-                </CardTitle>
-                <CardDescription>Phone, email, and website</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="phone" className="flex items-center gap-2">
                     <Phone className="h-4 w-4" />
@@ -257,81 +306,51 @@ export function FacilityManagement({
                     disabled={!isEditing}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="website" className="flex items-center gap-2">
-                    <Globe className="h-4 w-4" />
-                    Website
-                  </Label>
-                  <Input
-                    id="website"
-                    value={facilityData.website}
-                    onChange={(e) => setFacilityData({ ...facilityData, website: e.target.value })}
-                    disabled={!isEditing}
-                  />
-                </div>
               </CardContent>
             </Card>
 
             {/* Operating Hours */}
-            <Card>
+            <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="h-5 w-5" />
                   Operating Hours
                 </CardTitle>
-                <CardDescription>Facility hours for weekdays and weekends</CardDescription>
+                <CardDescription>Current facility hours (view only)</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-base font-semibold mb-3 block">Weekday Hours (Mon-Fri)</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="weekdayStart">Opening Time</Label>
-                      <Input
-                        id="weekdayStart"
-                        type="time"
-                        value={facilityData.weekdayHoursStart}
-                        onChange={(e) => setFacilityData({ ...facilityData, weekdayHoursStart: e.target.value })}
-                        disabled={!isEditing}
-                      />
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                    <div key={day} className="p-3 bg-gray-50 rounded-lg">
+                      <div className="font-medium capitalize text-sm mb-1">{day}</div>
+                      <div className="text-sm text-gray-600">{getHoursDisplay(day)}</div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="weekdayEnd">Closing Time</Label>
-                      <Input
-                        id="weekdayEnd"
-                        type="time"
-                        value={facilityData.weekdayHoursEnd}
-                        onChange={(e) => setFacilityData({ ...facilityData, weekdayHoursEnd: e.target.value })}
-                        disabled={!isEditing}
-                      />
-                    </div>
-                  </div>
+                  ))}
                 </div>
-                <div>
-                  <Label className="text-base font-semibold mb-3 block">Weekend Hours (Sat-Sun)</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="weekendStart">Opening Time</Label>
-                      <Input
-                        id="weekendStart"
-                        type="time"
-                        value={facilityData.weekendHoursStart}
-                        onChange={(e) => setFacilityData({ ...facilityData, weekendHoursStart: e.target.value })}
-                        disabled={!isEditing}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="weekendEnd">Closing Time</Label>
-                      <Input
-                        id="weekendEnd"
-                        type="time"
-                        value={facilityData.weekendHoursEnd}
-                        onChange={(e) => setFacilityData({ ...facilityData, weekendHoursEnd: e.target.value })}
-                        disabled={!isEditing}
-                      />
-                    </div>
+              </CardContent>
+            </Card>
+
+            {/* Amenities */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Amenities</CardTitle>
+                <CardDescription>Available facilities and features</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {facilityData.amenities && facilityData.amenities.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {facilityData.amenities.map((amenity, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                      >
+                        {amenity}
+                      </span>
+                    ))}
                   </div>
-                </div>
+                ) : (
+                  <p className="text-gray-500">No amenities listed</p>
+                )}
               </CardContent>
             </Card>
           </div>

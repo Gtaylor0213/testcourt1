@@ -70,12 +70,55 @@ export function UnifiedSidebar({
   clubs = []
 }: UnifiedSidebarProps) {
   const { user } = useAuth();
+  const [memberFacilities, setMemberFacilities] = React.useState<Club[]>([]);
+  const [loadingFacilities, setLoadingFacilities] = React.useState(true);
 
-  // Default clubs if none provided
-  const userClubs = clubs.length > 0 ? clubs : [
-    { id: 'riverside-tennis', name: 'Riverside Tennis Club' },
-    { id: 'downtown-racquet', name: 'Downtown Racquet Club' }
-  ];
+  // Use the actual user's type from AuthContext, or fall back to the prop
+  const actualUserType = user?.userType || userType;
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('UnifiedSidebar - user:', user);
+    console.log('UnifiedSidebar - actualUserType:', actualUserType);
+    console.log('UnifiedSidebar - userType prop:', userType);
+  }, [user, actualUserType, userType]);
+
+  // Fetch user's member facilities
+  React.useEffect(() => {
+    const fetchMemberFacilities = async () => {
+      if (!user?.memberFacilities || user.memberFacilities.length === 0) {
+        setMemberFacilities([]);
+        setLoadingFacilities(false);
+        return;
+      }
+
+      try {
+        const { facilitiesApi } = await import('../api/client');
+        const facilitiesData: Club[] = [];
+
+        for (const facilityId of user.memberFacilities) {
+          const response = await facilitiesApi.getById(facilityId);
+          if (response.success && response.data?.facility) {
+            facilitiesData.push({
+              id: response.data.facility.id,
+              name: response.data.facility.name
+            });
+          }
+        }
+
+        setMemberFacilities(facilitiesData);
+      } catch (error) {
+        console.error('Error fetching member facilities:', error);
+      } finally {
+        setLoadingFacilities(false);
+      }
+    };
+
+    fetchMemberFacilities();
+  }, [user?.memberFacilities]);
+
+  // Use clubs passed as prop, or use fetched member facilities, or empty array
+  const userClubs = clubs.length > 0 ? clubs : memberFacilities;
 
   // Get user initials
   const getUserInitials = () => {
@@ -88,20 +131,25 @@ export function UnifiedSidebar({
       .substring(0, 2);
   };
   
-  const SidebarButton = ({ 
-    onClick, 
-    icon: Icon, 
-    label, 
-    isActive = false 
-  }: { 
-    onClick: () => void; 
-    icon: any; 
-    label: string; 
+  const SidebarButton = ({
+    onClick,
+    icon: Icon,
+    label,
+    isActive = false
+  }: {
+    onClick: () => void;
+    icon: any;
+    label: string;
     isActive?: boolean;
   }) => {
+    const handleClick = () => {
+      console.log('SidebarButton clicked:', label);
+      onClick();
+    };
+
     const button = (
       <button
-        onClick={onClick}
+        onClick={handleClick}
         className={`w-full rounded-lg px-3 py-2 text-left hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center transition-colors ${
           isActive ? 'bg-blue-50 text-blue-700' : ''
         } ${isCollapsed ? 'justify-center' : ''}`}
@@ -163,7 +211,7 @@ export function UnifiedSidebar({
         {/* Navigation */}
         <nav className={`flex-1 ${isCollapsed ? 'p-2' : 'p-4'} space-y-6 overflow-y-auto`}>
           {/* Admin Navigation Section */}
-          {userType === 'admin' && (
+          {actualUserType === 'admin' && (
             <div>
               {!isCollapsed && <h3 className="text-sm font-medium text-gray-900 mb-3">Admin</h3>}
               <div className="space-y-1">
@@ -215,7 +263,7 @@ export function UnifiedSidebar({
 
           {/* Main Navigation Section */}
           <div>
-            {!isCollapsed && <h3 className="text-sm font-medium text-gray-900 mb-3">{userType === 'admin' ? 'Player Features' : 'Navigation'}</h3>}
+            {!isCollapsed && <h3 className="text-sm font-medium text-gray-900 mb-3">{actualUserType === 'admin' ? 'Player Features' : 'Navigation'}</h3>}
             <div className="space-y-1">
               <SidebarButton
                 onClick={onNavigateToCalendar}
@@ -250,8 +298,22 @@ export function UnifiedSidebar({
                 isActive={currentPage === 'bulletin-board'}
               />
 
+              {/* Loading state */}
+              {loadingFacilities && !isCollapsed && (
+                <div className="px-3 py-2 text-sm text-gray-500">
+                  Loading facilities...
+                </div>
+              )}
+
+              {/* No facilities message */}
+              {!loadingFacilities && userClubs.length === 0 && !isCollapsed && (
+                <div className="px-3 py-2 text-sm text-gray-500">
+                  No facility memberships
+                </div>
+              )}
+
               {/* Individual Club Listings */}
-              {userClubs.map((club) => (
+              {!loadingFacilities && userClubs.map((club) => (
                 <div key={club.id}>
                   <SidebarButton
                     onClick={() => onNavigateToClub?.(club.id)}
@@ -285,7 +347,7 @@ export function UnifiedSidebar({
                     <DropdownMenuContent align="end" className="w-48">
                       <div className="px-3 py-2 border-b">
                         <p className="text-sm font-medium">{user?.fullName || 'User'}</p>
-                        <p className="text-xs text-gray-600 capitalize">{userType || 'Player'}</p>
+                        <p className="text-xs text-gray-600 capitalize">{actualUserType || 'Player'}</p>
                       </div>
                       <DropdownMenuItem onClick={onNavigateToProfile}>
                         <User className="h-4 w-4 mr-2" />
@@ -315,7 +377,7 @@ export function UnifiedSidebar({
                 </Avatar>
                 <div className="text-left flex-1">
                   <p className="text-sm font-medium">{user?.fullName || 'User'}</p>
-                  <p className="text-xs text-gray-600 capitalize">{userType || 'Player'}</p>
+                  <p className="text-xs text-gray-600 capitalize">{actualUserType || 'Player'}</p>
                 </div>
                 <ChevronDown className="h-4 w-4 text-gray-400" />
               </DropdownMenuTrigger>

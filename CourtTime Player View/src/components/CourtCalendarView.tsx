@@ -19,6 +19,13 @@ interface CourtCalendarViewProps {
   onNavigateToBulletinBoard?: () => void;
   onNavigateToHittingPartner?: () => void;
   onNavigateToSettings?: () => void;
+  onNavigateToAdminDashboard?: () => void;
+  onNavigateToFacilityManagement?: () => void;
+  onNavigateToCourtManagement?: () => void;
+  onNavigateToBookingManagement?: () => void;
+  onNavigateToAdminBooking?: () => void;
+  onNavigateToMemberManagement?: () => void;
+  onNavigateToAnalytics?: () => void;
   onLogout: () => void;
   selectedFacilityId?: string;
   onFacilityChange?: (facilityId: string) => void;
@@ -33,6 +40,13 @@ export function CourtCalendarView({
   onNavigateToBulletinBoard = () => {},
   onNavigateToHittingPartner = () => {},
   onNavigateToSettings = () => {},
+  onNavigateToAdminDashboard = () => {},
+  onNavigateToFacilityManagement = () => {},
+  onNavigateToCourtManagement = () => {},
+  onNavigateToBookingManagement = () => {},
+  onNavigateToAdminBooking = () => {},
+  onNavigateToMemberManagement = () => {},
+  onNavigateToAnalytics = () => {},
   onLogout,
   selectedFacilityId = 'sunrise-valley',
   onFacilityChange,
@@ -587,6 +601,13 @@ export function CourtCalendarView({
         onNavigateToClub={onNavigateToClub}
         onNavigateToBulletinBoard={onNavigateToBulletinBoard}
         onNavigateToHittingPartner={onNavigateToHittingPartner}
+        onNavigateToAdminDashboard={onNavigateToAdminDashboard}
+        onNavigateToFacilityManagement={onNavigateToFacilityManagement}
+        onNavigateToCourtManagement={onNavigateToCourtManagement}
+        onNavigateToBookingManagement={onNavigateToBookingManagement}
+        onNavigateToAdminBooking={onNavigateToAdminBooking}
+        onNavigateToMemberManagement={onNavigateToMemberManagement}
+        onNavigateToAnalytics={onNavigateToAnalytics}
         onLogout={onLogout}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={onToggleSidebar}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UnifiedSidebar } from '../UnifiedSidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -7,6 +7,9 @@ import { Label } from '../ui/label';
 import { Calendar, Search, X, Eye } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
+import { useAuth } from '../../contexts/AuthContext';
+import { adminApi } from '../../api/client';
+import { toast } from 'sonner';
 
 interface BookingManagementProps {
   onBack: () => void;
@@ -16,6 +19,7 @@ interface BookingManagementProps {
   onNavigateToCalendar: () => void;
   onNavigateToClub?: (clubId: string) => void;
   onNavigateToHittingPartner?: () => void;
+  onNavigateToBulletinBoard?: () => void;
   onNavigateToAdminDashboard?: () => void;
   onNavigateToFacilityManagement?: () => void;
   onNavigateToCourtManagement?: () => void;
@@ -30,12 +34,15 @@ interface BookingManagementProps {
 interface Booking {
   id: string;
   courtName: string;
-  memberName: string;
-  date: string;
+  courtNumber: number;
+  userName: string;
+  userEmail: string;
+  bookingDate: string;
   startTime: string;
   endTime: string;
-  status: 'Confirmed' | 'Pending' | 'Cancelled';
-  type: 'Singles' | 'Doubles' | 'Lesson';
+  status: 'confirmed' | 'pending' | 'cancelled' | 'completed';
+  bookingType: string;
+  notes?: string;
 }
 
 export function BookingManagement({
@@ -45,6 +52,7 @@ export function BookingManagement({
   onNavigateToCalendar,
   onNavigateToClub = () => {},
   onNavigateToHittingPartner = () => {},
+  onNavigateToBulletinBoard = () => {},
   onNavigateToAdminDashboard = () => {},
   onNavigateToFacilityManagement = () => {},
   onNavigateToCourtManagement = () => {},
@@ -55,44 +63,141 @@ export function BookingManagement({
   sidebarCollapsed = false,
   onToggleSidebar
 }: BookingManagementProps) {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterDate, setFilterDate] = useState('');
-  const [bookings, setBookings] = useState<Booking[]>([
-    { id: '1', courtName: 'Court 1', memberName: 'John Doe', date: '2025-11-15', startTime: '09:00', endTime: '10:00', status: 'Confirmed', type: 'Singles' },
-    { id: '2', courtName: 'Court 2', memberName: 'Jane Smith', date: '2025-11-15', startTime: '10:00', endTime: '11:00', status: 'Confirmed', type: 'Doubles' },
-    { id: '3', courtName: 'Court 1', memberName: 'Bob Johnson', date: '2025-11-16', startTime: '14:00', endTime: '15:00', status: 'Pending', type: 'Lesson' },
-    { id: '4', courtName: 'Court 3', memberName: 'Alice Williams', date: '2025-11-16', startTime: '16:00', endTime: '17:30', status: 'Confirmed', type: 'Doubles' },
-    { id: '5', courtName: 'Court 2', memberName: 'Mike Brown', date: '2025-11-17', startTime: '11:00', endTime: '12:00', status: 'Cancelled', type: 'Singles' },
-  ]);
+  const [filterCourt, setFilterCourt] = useState<string>('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleCancelBooking = (id: string) => {
-    if (confirm('Are you sure you want to cancel this booking?')) {
-      setBookings(bookings.map(b => b.id === id ? { ...b, status: 'Cancelled' as const } : b));
+  const currentFacilityId = user?.memberFacilities?.[0];
+
+  useEffect(() => {
+    if (currentFacilityId) {
+      // Set default date range (current week)
+      const today = new Date();
+      const weekAgo = new Date(today);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const weekAhead = new Date(today);
+      weekAhead.setDate(weekAhead.getDate() + 7);
+
+      setStartDate(weekAgo.toISOString().split('T')[0]);
+      setEndDate(weekAhead.toISOString().split('T')[0]);
+    }
+  }, [currentFacilityId]);
+
+  useEffect(() => {
+    if (currentFacilityId && startDate && endDate) {
+      loadBookings();
+    }
+  }, [currentFacilityId, startDate, endDate, filterStatus, filterCourt]);
+
+  const loadBookings = async () => {
+    if (!currentFacilityId) {
+      toast.error('No facility selected');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const filters = {
+        status: filterStatus,
+        startDate,
+        endDate,
+        courtId: filterCourt,
+      };
+
+      const response = await adminApi.getBookings(currentFacilityId, filters);
+
+      if (response.success && response.data?.bookings) {
+        setBookings(response.data.bookings);
+      } else {
+        toast.error(response.error || 'Failed to load bookings');
+      }
+    } catch (error: any) {
+      console.error('Error loading bookings:', error);
+      toast.error('Failed to load bookings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelBooking = async (id: string) => {
+    if (!confirm('Are you sure you want to cancel this booking?')) return;
+
+    try {
+      const response = await adminApi.updateBookingStatus(id, 'cancelled');
+      if (response.success) {
+        toast.success('Booking cancelled successfully');
+        await loadBookings();
+      } else {
+        toast.error(response.error || 'Failed to cancel booking');
+      }
+    } catch (error: any) {
+      console.error('Error cancelling booking:', error);
+      toast.error('Failed to cancel booking');
+    }
+  };
+
+  const handleCompleteBooking = async (id: string) => {
+    try {
+      const response = await adminApi.updateBookingStatus(id, 'completed');
+      if (response.success) {
+        toast.success('Booking marked as completed');
+        await loadBookings();
+      } else {
+        toast.error(response.error || 'Failed to update booking');
+      }
+    } catch (error: any) {
+      console.error('Error updating booking:', error);
+      toast.error('Failed to update booking');
     }
   };
 
   const filteredBookings = bookings.filter(booking => {
-    const matchesSearch = booking.memberName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.courtName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || booking.status === filterStatus;
-    const matchesDate = !filterDate || booking.date === filterDate;
-    return matchesSearch && matchesStatus && matchesDate;
+    const matchesSearch =
+      booking.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.courtName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.userEmail.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
   });
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Confirmed': return 'bg-green-100 text-green-800';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800';
-      case 'Cancelled': return 'bg-red-100 text-red-800';
+    switch (status.toLowerCase()) {
+      case 'confirmed': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'completed': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const formatStatus = (status: string) => {
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
   };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   };
+
+  const formatTime = (timeStr: string) => {
+    const [hours, minutes] = timeStr.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -103,6 +208,7 @@ export function BookingManagement({
         onNavigateToCalendar={onNavigateToCalendar}
         onNavigateToClub={onNavigateToClub}
         onNavigateToHittingPartner={onNavigateToHittingPartner}
+        onNavigateToBulletinBoard={onNavigateToBulletinBoard}
         onNavigateToAdminDashboard={onNavigateToAdminDashboard}
         onNavigateToFacilityManagement={onNavigateToFacilityManagement}
         onNavigateToCourtManagement={onNavigateToCourtManagement}
@@ -133,7 +239,7 @@ export function BookingManagement({
               <CardDescription>Search and filter bookings by member, court, date, or status</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="search">Search</Label>
                   <div className="relative">
@@ -155,19 +261,40 @@ export function BookingManagement({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Statuses</SelectItem>
-                      <SelectItem value="Confirmed">Confirmed</SelectItem>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                      <SelectItem value="Cancelled">Cancelled</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="filterDate">Date</Label>
+                  <Label htmlFor="filterCourt">Court</Label>
+                  <Select value={filterCourt} onValueChange={setFilterCourt}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Courts</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">Start Date</Label>
                   <Input
-                    id="filterDate"
+                    id="startDate"
                     type="date"
-                    value={filterDate}
-                    onChange={(e) => setFilterDate(e.target.value)}
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">End Date</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
                   />
                 </div>
               </div>
@@ -191,33 +318,48 @@ export function BookingManagement({
                       key={booking.id}
                       className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-4">
+                      <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-4">
                         <div>
                           <div className="text-sm text-gray-500">Court</div>
                           <div className="font-medium">{booking.courtName}</div>
+                          <div className="text-xs text-gray-400">Court #{booking.courtNumber}</div>
                         </div>
                         <div>
                           <div className="text-sm text-gray-500">Member</div>
-                          <div className="font-medium">{booking.memberName}</div>
+                          <div className="font-medium">{booking.userName}</div>
+                          <div className="text-xs text-gray-400">{booking.userEmail}</div>
                         </div>
                         <div>
                           <div className="text-sm text-gray-500">Date</div>
-                          <div className="font-medium">{formatDate(booking.date)}</div>
+                          <div className="font-medium">{formatDate(booking.bookingDate)}</div>
                         </div>
                         <div>
                           <div className="text-sm text-gray-500">Time</div>
-                          <div className="font-medium">{booking.startTime} - {booking.endTime}</div>
+                          <div className="font-medium">
+                            {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-500">Type</div>
+                          <div className="font-medium capitalize">{booking.bookingType}</div>
                         </div>
                         <div>
                           <div className="text-sm text-gray-500">Status</div>
-                          <Badge className={getStatusColor(booking.status)}>{booking.status}</Badge>
+                          <Badge className={getStatusColor(booking.status)}>{formatStatus(booking.status)}</Badge>
                         </div>
                       </div>
                       <div className="flex gap-2 ml-4">
-                        <Button variant="outline" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {booking.status !== 'Cancelled' && (
+                        {booking.status === 'confirmed' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCompleteBooking(booking.id)}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            Complete
+                          </Button>
+                        )}
+                        {booking.status !== 'cancelled' && booking.status !== 'completed' && (
                           <Button
                             variant="outline"
                             size="sm"

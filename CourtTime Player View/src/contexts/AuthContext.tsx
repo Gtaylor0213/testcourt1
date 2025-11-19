@@ -106,16 +106,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Login API result:', result);
 
       if (result.success && result.data) {
-        // The API wraps the response in a data object
-        const userData = result.data.user || result.data;
-        setUser(userData);
-        setAccessToken('token-' + userData.id);
-        toast.success('Logged in successfully');
-        return true;
-      } else {
-        toast.error(result.error || 'Login failed');
-        return false;
+        // The API client wraps backend response: { success: true, data: { success: true, user: {...} } }
+        const backendResponse = result.data as any;
+        if (backendResponse.user) {
+          setUser(backendResponse.user);
+          setAccessToken('token-' + backendResponse.user.id);
+          toast.success('Logged in successfully');
+          return true;
+        }
       }
+
+      toast.error(result.error || 'Login failed');
+      return false;
     } catch (error: any) {
       console.error('Login failed:', error);
       toast.error(error.message || 'Login failed');

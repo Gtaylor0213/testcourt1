@@ -6,7 +6,6 @@ import {
   removeMemberFromFacility,
   addMemberToFacility,
   setMemberAsAdmin,
-  searchFacilityMembers,
   isFacilityAdmin
 } from '../../src/services/memberService';
 
@@ -21,12 +20,10 @@ router.get('/:facilityId', async (req, res, next) => {
     const { facilityId } = req.params;
     const { search } = req.query;
 
-    let members;
-    if (search && typeof search === 'string') {
-      members = await searchFacilityMembers(facilityId, search);
-    } else {
-      members = await getFacilityMembers(facilityId);
-    }
+    const members = await getFacilityMembers(
+      facilityId,
+      search && typeof search === 'string' ? search : undefined
+    );
 
     res.json({
       success: true,

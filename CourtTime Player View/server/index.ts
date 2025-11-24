@@ -21,6 +21,7 @@ import hittingPartnerRoutes from './routes/hittingPartner';
 import bulletinBoardRoutes from './routes/bulletinBoard';
 import bookingRoutes from './routes/bookings';
 import adminRoutes from './routes/admin';
+import addressWhitelistRoutes from './routes/addressWhitelist';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -51,6 +52,7 @@ app.use('/api/hitting-partner', hittingPartnerRoutes);
 app.use('/api/bulletin-board', bulletinBoardRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/address-whitelist', addressWhitelistRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -96,6 +98,7 @@ async function startServer() {
       console.log(`   📋 Bulletin Board: /api/bulletin-board`);
       console.log(`   📅 Bookings: /api/bookings`);
       console.log(`   🔧 Admin: /api/admin`);
+      console.log(`   📍 Address Whitelist: /api/address-whitelist`);
       console.log(`\n${'='.repeat(60)}\n`);
     });
 

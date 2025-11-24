@@ -17,8 +17,8 @@ export interface MemberWithProfile {
   startDate: string;
   endDate?: string;
   skillLevel?: string;
-  ntrpRating?: number;
   phone?: string;
+  streetAddress?: string;
   createdAt: string;
 }
 
@@ -32,29 +32,41 @@ export interface MemberUpdateData {
 /**
  * Get all members for a facility with their profiles
  */
-export async function getFacilityMembers(facilityId: string): Promise<MemberWithProfile[]> {
+export async function getFacilityMembers(facilityId: string, searchTerm?: string): Promise<MemberWithProfile[]> {
   try {
-    const result = await query(
-      `SELECT
+    let queryText = `SELECT
         u.id as "userId",
         u.email,
         u.full_name as "fullName",
+        u.phone,
+        u.street_address as "streetAddress",
         fm.id as "membershipId",
         fm.membership_type as "membershipType",
         fm.status,
         fm.is_facility_admin as "isFacilityAdmin",
-        fm.start_date as "startDate",
-        fm.end_date as "endDate",
+        TO_CHAR(fm.start_date, 'YYYY-MM-DD') as "startDate",
+        TO_CHAR(fm.end_date, 'YYYY-MM-DD') as "endDate",
         fm.created_at as "createdAt",
-        pp.skill_level as "skillLevel",
-        pp.ntrp_rating as "ntrpRating"
+        pp.skill_level as "skillLevel"
        FROM facility_memberships fm
        JOIN users u ON fm.user_id = u.id
        LEFT JOIN player_profiles pp ON u.id = pp.user_id
-       WHERE fm.facility_id = $1
-       ORDER BY fm.created_at DESC`,
-      [facilityId]
-    );
+       WHERE fm.facility_id = $1`;
+
+    const params: any[] = [facilityId];
+
+    if (searchTerm) {
+      queryText += ` AND (
+        LOWER(u.full_name) LIKE LOWER($2)
+        OR LOWER(u.email) LIKE LOWER($2)
+        OR LOWER(u.street_address) LIKE LOWER($2)
+      )`;
+      params.push(`%${searchTerm}%`);
+    }
+
+    queryText += ` ORDER BY fm.created_at DESC`;
+
+    const result = await query(queryText, params);
 
     return result.rows;
   } catch (error) {
@@ -73,15 +85,15 @@ export async function getMemberDetails(facilityId: string, userId: string): Prom
         u.id as "userId",
         u.email,
         u.full_name as "fullName",
+        u.phone,
         fm.id as "membershipId",
         fm.membership_type as "membershipType",
         fm.status,
         fm.is_facility_admin as "isFacilityAdmin",
-        fm.start_date as "startDate",
-        fm.end_date as "endDate",
+        TO_CHAR(fm.start_date, 'YYYY-MM-DD') as "startDate",
+        TO_CHAR(fm.end_date, 'YYYY-MM-DD') as "endDate",
         fm.created_at as "createdAt",
-        pp.skill_level as "skillLevel",
-        pp.ntrp_rating as "ntrpRating"
+        pp.skill_level as "skillLevel"
        FROM facility_memberships fm
        JOIN users u ON fm.user_id = u.id
        LEFT JOIN player_profiles pp ON u.id = pp.user_id
@@ -222,46 +234,6 @@ export async function setMemberAsAdmin(
   }
 }
 
-/**
- * Search members by name or email
- */
-export async function searchFacilityMembers(
-  facilityId: string,
-  searchTerm: string
-): Promise<MemberWithProfile[]> {
-  try {
-    const result = await query(
-      `SELECT
-        u.id as "userId",
-        u.email,
-        u.full_name as "fullName",
-        fm.id as "membershipId",
-        fm.membership_type as "membershipType",
-        fm.status,
-        fm.is_facility_admin as "isFacilityAdmin",
-        fm.start_date as "startDate",
-        fm.end_date as "endDate",
-        fm.created_at as "createdAt",
-        pp.skill_level as "skillLevel",
-        pp.ntrp_rating as "ntrpRating"
-       FROM facility_memberships fm
-       JOIN users u ON fm.user_id = u.id
-       LEFT JOIN player_profiles pp ON u.id = pp.user_id
-       WHERE fm.facility_id = $1
-         AND (
-           LOWER(u.full_name) LIKE LOWER($2)
-           OR LOWER(u.email) LIKE LOWER($2)
-         )
-       ORDER BY fm.created_at DESC`,
-      [facilityId, `%${searchTerm}%`]
-    );
-
-    return result.rows;
-  } catch (error) {
-    console.error('Search facility members error:', error);
-    throw new Error('Failed to search members');
-  }
-}
 
 /**
  * Check if a user is a facility admin

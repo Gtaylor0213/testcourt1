@@ -54,13 +54,17 @@ export function BookingWizard({ isOpen, onClose, court, courtId, date, time, fac
 
       // Helper to parse date string to YYYY-MM-DD
       const parseDate = (dateStr: string): string => {
-        // If date is already in ISO format, extract date part
-        if (dateStr.includes('-')) {
+        // If date is already in YYYY-MM-DD format, return as-is
+        if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          return dateStr;
+        }
+        // If date has time component, extract date part
+        if (dateStr.includes('T')) {
           return dateStr.split('T')[0];
         }
         // Parse from format like "Monday, November 15, 2025"
-        const parsed = new Date(dateStr);
-        // Use local date instead of UTC to avoid timezone issues
+        // Add noon time to avoid timezone edge cases
+        const parsed = new Date(dateStr + ' 12:00:00');
         const year = parsed.getFullYear();
         const month = String(parsed.getMonth() + 1).padStart(2, '0');
         const day = String(parsed.getDate()).padStart(2, '0');

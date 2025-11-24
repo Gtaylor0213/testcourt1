@@ -423,3 +423,38 @@ export const adminApi = {
     return apiRequest(`/api/admin/analytics/${facilityId}?period=${period || 30}`);
   },
 };
+
+// Address Whitelist API
+export const addressWhitelistApi = {
+  getAll: async (facilityId: string) => {
+    return apiRequest(`/api/address-whitelist/${facilityId}`);
+  },
+
+  add: async (facilityId: string, address: string, accountsLimit?: number) => {
+    return apiRequest(`/api/address-whitelist/${facilityId}`, {
+      method: 'POST',
+      body: JSON.stringify({ address, accountsLimit }),
+    });
+  },
+
+  remove: async (facilityId: string, addressId: string) => {
+    return apiRequest(`/api/address-whitelist/${facilityId}/${addressId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  updateLimit: async (facilityId: string, addressId: string, accountsLimit: number) => {
+    return apiRequest(`/api/address-whitelist/${facilityId}/${addressId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ accountsLimit }),
+    });
+  },
+
+  check: async (facilityId: string, address: string) => {
+    return apiRequest(`/api/address-whitelist/${facilityId}/check/${encodeURIComponent(address)}`);
+  },
+
+  getCount: async (facilityId: string, address: string) => {
+    return apiRequest(`/api/address-whitelist/${facilityId}/count/${encodeURIComponent(address)}`);
+  },
+};

@@ -761,18 +761,6 @@ export function CourtCalendarView({
             ) : (
               <div className="overflow-x-auto">
                 <div className="min-w-max relative">
-                {/* Current Time Line */}
-                {currentTimePosition && isToday(selectedDate) && (
-                  <div 
-                    className="absolute left-0 right-0 z-10 flex items-center"
-                    style={{ top: `${currentTimePosition}px` }}
-                  >
-                    <div className="w-full h-0.5 bg-red-500"></div>
-                    <div className="absolute -left-2 w-2 h-2 bg-red-500 rounded-full"></div>
-                    <div className="absolute -right-2 w-2 h-2 bg-red-500 rounded-full"></div>
-                  </div>
-                )}
-
                 {/* Header Row - Court Names */}
                 <div className="grid grid-cols-[120px_repeat(var(--court-count),_200px)] border-b border-gray-200 bg-gray-50" style={{'--court-count': courts.length} as React.CSSProperties}>
                   <div className="p-4 border-r border-gray-200">
@@ -855,12 +843,6 @@ export function CourtCalendarView({
             <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded"></div>
             <span>Past/Unavailable</span>
           </div>
-          {isToday(selectedDate) && (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-0.5 bg-red-500"></div>
-              <span>Current Time</span>
-            </div>
-          )}
         </div>
         </>
         )}

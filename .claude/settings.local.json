@@ -40,7 +40,10 @@
       "Bash(cmd.exe //c \"taskkill /PID 21940 /F\")",
       "Bash(cmd.exe //c \"taskkill /PID 19000 /F\")",
       "Bash(node scripts/create-admin.js:*)",
-      "Bash(node scripts/populate-sample-data.js:*)"
+      "Bash(node scripts/populate-sample-data.js:*)",
+      "Bash(dir:*)",
+      "Bash(node scripts/migrate-conversations.js:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

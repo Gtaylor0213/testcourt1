@@ -18,6 +18,7 @@ interface BulletinBoardProps {
   onNavigateToClub?: (clubId: string) => void;
   onNavigateToBulletinBoard?: () => void;
   onNavigateToHittingPartner?: () => void;
+  onNavigateToMessages?: () => void;
   onNavigateToAdminDashboard?: () => void;
   onNavigateToFacilityManagement?: () => void;
   onNavigateToCourtManagement?: () => void;
@@ -78,6 +79,7 @@ export function BulletinBoard({
   onNavigateToClub = () => {},
   onNavigateToBulletinBoard = () => {},
   onNavigateToHittingPartner = () => {},
+  onNavigateToMessages = () => {},
   onNavigateToAdminDashboard = () => {},
   onNavigateToFacilityManagement = () => {},
   onNavigateToCourtManagement = () => {},
@@ -194,6 +196,7 @@ export function BulletinBoard({
         onNavigateToClub={onNavigateToClub}
         onNavigateToBulletinBoard={onNavigateToBulletinBoard}
         onNavigateToHittingPartner={onNavigateToHittingPartner}
+        onNavigateToMessages={onNavigateToMessages}
         onNavigateToAdminDashboard={onNavigateToAdminDashboard}
         onNavigateToFacilityManagement={onNavigateToFacilityManagement}
         onNavigateToCourtManagement={onNavigateToCourtManagement}

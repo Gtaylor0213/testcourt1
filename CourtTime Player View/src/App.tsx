@@ -11,6 +11,7 @@ import { UserRegistration } from './components/UserRegistration';
 import { ClubInfo } from './components/ClubInfo';
 import { BulletinBoard } from './components/BulletinBoard';
 import { FindHittingPartner } from './components/FindHittingPartner';
+import { MessagesPage } from './components/MessagesPage';
 import { ForgotPassword } from './components/ForgotPassword';
 import { ResetPassword } from './components/ResetPassword';
 import { FacilityRegistration } from './components/FacilityRegistration';
@@ -22,7 +23,7 @@ import { AdminBooking } from './components/admin/AdminBooking';
 import { MemberManagement } from './components/admin/MemberManagement';
 import { Analytics } from './components/admin/Analytics';
 
-type Screen = 'login' | 'court-calendar' | 'player-dashboard' | 'quick-reservation' | 'profile' | 'user-registration' | 'facility-registration' | 'club-info' | 'bulletin-board' | 'hitting-partner' | 'forgot-password' | 'reset-password' | 'admin-dashboard' | 'facility-management' | 'court-management' | 'booking-management' | 'admin-booking' | 'member-management' | 'analytics';
+type Screen = 'login' | 'court-calendar' | 'player-dashboard' | 'quick-reservation' | 'profile' | 'user-registration' | 'facility-registration' | 'club-info' | 'bulletin-board' | 'hitting-partner' | 'messages' | 'forgot-password' | 'reset-password' | 'admin-dashboard' | 'facility-management' | 'court-management' | 'booking-management' | 'admin-booking' | 'member-management' | 'analytics';
 
 function AppContent() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('login');
@@ -30,6 +31,7 @@ function AppContent() {
   const [selectedClubId, setSelectedClubId] = useState<string>('');
   const [selectedClubName, setSelectedClubName] = useState<string>('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [selectedRecipientId, setSelectedRecipientId] = useState<string>('');
 
   const { user, loading, logout: authLogout } = useAuth();
 
@@ -97,6 +99,15 @@ function AppContent() {
 
   const navigateToHittingPartner = () => {
     setCurrentScreen('hitting-partner');
+  };
+
+  const navigateToMessages = (recipientId?: string) => {
+    if (recipientId) {
+      setSelectedRecipientId(recipientId);
+    } else {
+      setSelectedRecipientId('');
+    }
+    setCurrentScreen('messages');
   };
 
   const navigateToBulletinBoard = (clubId?: string, clubName?: string) => {
@@ -239,6 +250,7 @@ function AppContent() {
           onNavigateToClub={navigateToClub}
           onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToMessages={navigateToMessages}
           onNavigateToAdminDashboard={navigateToAdminDashboard}
           onNavigateToFacilityManagement={navigateToFacilityManagement}
           onNavigateToCourtManagement={navigateToCourtManagement}
@@ -262,6 +274,7 @@ function AppContent() {
           onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToMessages={navigateToMessages}
           onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToAdminDashboard={navigateToAdminDashboard}
           onNavigateToFacilityManagement={navigateToFacilityManagement}
@@ -284,6 +297,7 @@ function AppContent() {
           onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToMessages={navigateToMessages}
           onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToAdminDashboard={navigateToAdminDashboard}
           onNavigateToFacilityManagement={navigateToFacilityManagement}
@@ -308,6 +322,7 @@ function AppContent() {
           onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToMessages={navigateToMessages}
           onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToAdminDashboard={navigateToAdminDashboard}
           onNavigateToFacilityManagement={navigateToFacilityManagement}
@@ -332,6 +347,7 @@ function AppContent() {
           onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToMessages={navigateToMessages}
           onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToAdminDashboard={navigateToAdminDashboard}
           onNavigateToFacilityManagement={navigateToFacilityManagement}
@@ -358,6 +374,7 @@ function AppContent() {
           onNavigateToClub={navigateToClub}
           onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToMessages={navigateToMessages}
           onNavigateToAdminDashboard={navigateToAdminDashboard}
           onNavigateToFacilityManagement={navigateToFacilityManagement}
           onNavigateToCourtManagement={navigateToCourtManagement}
@@ -382,19 +399,30 @@ function AppContent() {
           onNavigateToPlayerDashboard={navigateToPlayerDashboard}
           onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}
-          onNavigateToHittingPartner={navigateToHittingPartner}
           onNavigateToBulletinBoard={navigateToBulletinBoard}
-          onNavigateToAdminDashboard={navigateToAdminDashboard}
-          onNavigateToFacilityManagement={navigateToFacilityManagement}
-          onNavigateToCourtManagement={navigateToCourtManagement}
-          onNavigateToBookingManagement={navigateToBookingManagement}
-          onNavigateToAdminBooking={navigateToAdminBooking}
-          onNavigateToMemberManagement={navigateToMemberManagement}
-          onNavigateToAnalytics={navigateToAnalytics}
+          onNavigateToMessages={navigateToMessages}
           selectedFacilityId={selectedFacilityId}
           onFacilityChange={handleFacilityChange}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
+        />
+      )}
+
+      {currentScreen === 'messages' && (
+        <MessagesPage
+          onBack={navigateBack}
+          onLogout={handleLogout}
+          onNavigateToProfile={navigateToProfile}
+          onNavigateToPlayerDashboard={navigateToPlayerDashboard}
+          onNavigateToCalendar={navigateToCourtCalendar}
+          onNavigateToClub={navigateToClub}
+          onNavigateToBulletinBoard={navigateToBulletinBoard}
+          onNavigateToHittingPartner={navigateToHittingPartner}
+          selectedFacilityId={selectedFacilityId}
+          onFacilityChange={handleFacilityChange}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={toggleSidebar}
+          selectedRecipientId={selectedRecipientId}
         />
       )}
 

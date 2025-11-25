@@ -21,6 +21,7 @@ interface PlayerProfileProps {
   onNavigateToClub?: (clubId: string) => void;
   onNavigateToBulletinBoard?: () => void;
   onNavigateToHittingPartner?: () => void;
+  onNavigateToMessages?: () => void;
   onNavigateToCalendar?: () => void;
   selectedFacilityId?: string;
   onFacilityChange?: (facilityId: string) => void;
@@ -36,6 +37,7 @@ export function PlayerProfile({
   onNavigateToClub = () => {},
   onNavigateToBulletinBoard = () => {},
   onNavigateToHittingPartner = () => {},
+  onNavigateToMessages = () => {},
   onNavigateToCalendar = () => {},
   sidebarCollapsed = false,
   onToggleSidebar
@@ -332,6 +334,7 @@ export function PlayerProfile({
         onNavigateToClub={onNavigateToClub}
         onNavigateToBulletinBoard={onNavigateToBulletinBoard}
         onNavigateToHittingPartner={onNavigateToHittingPartner}
+        onNavigateToMessages={onNavigateToMessages}
         onLogout={onLogout}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={onToggleSidebar}

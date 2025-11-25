@@ -18,6 +18,7 @@ interface PlayerDashboardProps {
   onNavigateToClub: (clubId: string) => void;
   onNavigateToBulletinBoard?: () => void;
   onNavigateToHittingPartner?: () => void;
+  onNavigateToMessages?: () => void;
   onNavigateToSettings?: () => void;
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
@@ -31,6 +32,7 @@ export function PlayerDashboard({
   onNavigateToClub,
   onNavigateToBulletinBoard = () => {},
   onNavigateToHittingPartner = () => {},
+  onNavigateToMessages = () => {},
   onNavigateToSettings = () => {},
   sidebarCollapsed = false,
   onToggleSidebar
@@ -156,6 +158,7 @@ export function PlayerDashboard({
         onNavigateToClub={onNavigateToClub}
         onNavigateToBulletinBoard={onNavigateToBulletinBoard}
         onNavigateToHittingPartner={onNavigateToHittingPartner}
+        onNavigateToMessages={onNavigateToMessages}
         onLogout={onLogout}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={onToggleSidebar}

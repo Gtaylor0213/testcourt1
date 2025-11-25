@@ -14,6 +14,7 @@ interface QuickReservationProps {
   onNavigateToPlayerDashboard?: () => void;
   onNavigateToClub?: (clubId: string) => void;
   onNavigateToHittingPartner?: () => void;
+  onNavigateToMessages?: () => void;
   selectedFacilityId?: string;
   onFacilityChange?: (facilityId: string) => void;
   sidebarCollapsed?: boolean;
@@ -27,6 +28,7 @@ export function QuickReservation({
   onNavigateToPlayerDashboard = () => {},
   onNavigateToClub = () => {},
   onNavigateToHittingPartner = () => {},
+  onNavigateToMessages = () => {},
   selectedFacilityId,
   onFacilityChange,
   sidebarCollapsed = false,
@@ -117,6 +119,7 @@ export function QuickReservation({
         onNavigateToCalendar={onBack}
         onNavigateToClub={onNavigateToClub}
         onNavigateToHittingPartner={onNavigateToHittingPartner}
+        onNavigateToMessages={onNavigateToMessages}
         onLogout={onLogout}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={onToggleSidebar}

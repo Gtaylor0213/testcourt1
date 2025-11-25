@@ -22,6 +22,7 @@ import bulletinBoardRoutes from './routes/bulletinBoard';
 import bookingRoutes from './routes/bookings';
 import adminRoutes from './routes/admin';
 import addressWhitelistRoutes from './routes/addressWhitelist';
+import messagesRoutes from './routes/messages';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -53,6 +54,7 @@ app.use('/api/bulletin-board', bulletinBoardRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/address-whitelist', addressWhitelistRoutes);
+app.use('/api/messages', messagesRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

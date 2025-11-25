@@ -17,6 +17,7 @@ interface ClubInfoProps {
   onNavigateToCalendar: () => void;
   onNavigateToClub?: (clubId: string) => void;
   onNavigateToHittingPartner?: () => void;
+  onNavigateToMessages?: () => void;
   onNavigateToBulletinBoard?: (clubId: string, clubName: string) => void;
   selectedFacilityId?: string;
   onFacilityChange?: (facilityId: string) => void;
@@ -55,6 +56,7 @@ export function ClubInfo({
   onNavigateToCalendar,
   onNavigateToClub = () => {},
   onNavigateToHittingPartner = () => {},
+  onNavigateToMessages = () => {},
   onNavigateToBulletinBoard = () => {},
   selectedFacilityId,
   onFacilityChange,
@@ -143,6 +145,7 @@ export function ClubInfo({
           onNavigateToCalendar={onNavigateToCalendar}
           onNavigateToClub={onNavigateToClub}
           onNavigateToHittingPartner={onNavigateToHittingPartner}
+          onNavigateToMessages={onNavigateToMessages}
           onLogout={onLogout}
           isCollapsed={sidebarCollapsed}
           onToggleCollapse={onToggleSidebar}
@@ -176,6 +179,7 @@ export function ClubInfo({
         onNavigateToCalendar={onNavigateToCalendar}
         onNavigateToClub={onNavigateToClub}
         onNavigateToHittingPartner={onNavigateToHittingPartner}
+        onNavigateToMessages={onNavigateToMessages}
         onLogout={onLogout}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={onToggleSidebar}

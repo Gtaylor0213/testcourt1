@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { User, LogOut, ChevronLeft, ChevronRight, ChevronDown, Calendar, Building2, LayoutDashboard, UserSearch, Settings, Users, BarChart3, BookOpen, UserCog, MessageSquare } from 'lucide-react';
+import { User, LogOut, ChevronLeft, ChevronRight, ChevronDown, Calendar, Building2, LayoutDashboard, UserSearch, Settings, Users, BarChart3, BookOpen, UserCog, MessageSquare, MessageCircle } from 'lucide-react';
 import logoImage from 'figma:asset/8775e46e6be583b8cd937eefe50d395e0a3fcf52.png';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -26,6 +26,7 @@ interface UnifiedSidebarProps {
   onNavigateToClub?: (clubId: string) => void;
   onNavigateToBulletinBoard?: () => void;
   onNavigateToHittingPartner?: () => void;
+  onNavigateToMessages?: () => void;
   onNavigateToAdminDashboard?: () => void;
   onNavigateToFacilityManagement?: () => void;
   onNavigateToCourtManagement?: () => void;
@@ -52,6 +53,7 @@ export function UnifiedSidebar({
   onNavigateToClub,
   onNavigateToBulletinBoard = () => {},
   onNavigateToHittingPartner = () => {},
+  onNavigateToMessages = () => {},
   onNavigateToAdminDashboard = () => {},
   onNavigateToFacilityManagement = () => {},
   onNavigateToCourtManagement = () => {},
@@ -282,6 +284,12 @@ export function UnifiedSidebar({
                 icon={UserSearch}
                 label="Find Hitting Partner"
                 isActive={currentPage === 'hitting-partner'}
+              />
+              <SidebarButton
+                onClick={onNavigateToMessages}
+                icon={MessageCircle}
+                label="Messages"
+                isActive={currentPage === 'messages'}
               />
             </div>
           </div>

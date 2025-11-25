@@ -458,3 +458,32 @@ export const addressWhitelistApi = {
     return apiRequest(`/api/address-whitelist/${facilityId}/count/${encodeURIComponent(address)}`);
   },
 };
+
+// Messages API
+export const messagesApi = {
+  // Get all conversations for a user within a facility
+  getConversations: async (facilityId: string, userId: string) => {
+    return apiRequest(`/api/messages/conversations/${facilityId}/${userId}`);
+  },
+
+  // Get all messages in a conversation
+  getMessages: async (conversationId: string) => {
+    return apiRequest(`/api/messages/${conversationId}`);
+  },
+
+  // Send a new message or create a conversation
+  sendMessage: async (senderId: string, recipientId: string, facilityId: string, messageText: string) => {
+    return apiRequest('/api/messages', {
+      method: 'POST',
+      body: JSON.stringify({ senderId, recipientId, facilityId, messageText }),
+    });
+  },
+
+  // Mark all messages in a conversation as read
+  markAsRead: async (conversationId: string, userId: string) => {
+    return apiRequest(`/api/messages/${conversationId}/read`, {
+      method: 'PATCH',
+      body: JSON.stringify({ userId }),
+    });
+  },
+};

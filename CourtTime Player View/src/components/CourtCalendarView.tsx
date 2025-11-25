@@ -18,6 +18,7 @@ interface CourtCalendarViewProps {
   onNavigateToClub: (clubId: string) => void;
   onNavigateToBulletinBoard?: () => void;
   onNavigateToHittingPartner?: () => void;
+  onNavigateToMessages?: () => void;
   onNavigateToSettings?: () => void;
   onNavigateToAdminDashboard?: () => void;
   onNavigateToFacilityManagement?: () => void;
@@ -39,6 +40,7 @@ export function CourtCalendarView({
   onNavigateToClub,
   onNavigateToBulletinBoard = () => {},
   onNavigateToHittingPartner = () => {},
+  onNavigateToMessages = () => {},
   onNavigateToSettings = () => {},
   onNavigateToAdminDashboard = () => {},
   onNavigateToFacilityManagement = () => {},
@@ -601,6 +603,7 @@ export function CourtCalendarView({
         onNavigateToClub={onNavigateToClub}
         onNavigateToBulletinBoard={onNavigateToBulletinBoard}
         onNavigateToHittingPartner={onNavigateToHittingPartner}
+        onNavigateToMessages={onNavigateToMessages}
         onNavigateToAdminDashboard={onNavigateToAdminDashboard}
         onNavigateToFacilityManagement={onNavigateToFacilityManagement}
         onNavigateToCourtManagement={onNavigateToCourtManagement}

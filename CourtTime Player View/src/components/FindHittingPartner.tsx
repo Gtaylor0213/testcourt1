@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UnifiedSidebar } from './UnifiedSidebar';
-import { Search, Filter, Users, Calendar, Plus, X, Building, Edit, Trash2, AlertCircle } from 'lucide-react';
+import { Search, Filter, Users, Calendar, Plus, X, Building, Edit, Trash2, AlertCircle, MessageCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { hittingPartnerApi, playerProfileApi } from '../api/client';
 import { Button } from './ui/button';
@@ -22,6 +22,7 @@ interface FindHittingPartnerProps {
   onNavigateToCalendar: () => void;
   onNavigateToClub?: (clubId: string) => void;
   onNavigateToBulletinBoard?: () => void;
+  onNavigateToMessages?: (recipientId?: string) => void;
   selectedFacilityId?: string;
   onFacilityChange?: (facilityId: string) => void;
   sidebarCollapsed: boolean;
@@ -36,6 +37,7 @@ export function FindHittingPartner({
   onNavigateToCalendar,
   onNavigateToClub = () => {},
   onNavigateToBulletinBoard = () => {},
+  onNavigateToMessages = () => {},
   selectedFacilityId,
   onFacilityChange,
   sidebarCollapsed,
@@ -311,6 +313,7 @@ export function FindHittingPartner({
         onNavigateToClub={onNavigateToClub}
         onNavigateToBulletinBoard={onNavigateToBulletinBoard}
         onNavigateToHittingPartner={() => {}}
+        onNavigateToMessages={onNavigateToMessages}
         onLogout={onLogout}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={onToggleSidebar}
@@ -473,25 +476,38 @@ export function FindHittingPartner({
                                 </Badge>
                               </div>
                             </div>
-                            {isMyPost && (
-                              <div className="flex gap-2">
+                            <div className="flex gap-2">
+                              {!isMyPost && (
                                 <Button
-                                  variant="outline"
+                                  variant="default"
                                   size="sm"
-                                  onClick={() => startEdit(post)}
+                                  onClick={() => onNavigateToMessages(post.userId)}
+                                  className="bg-blue-600 hover:bg-blue-700"
                                 >
-                                  <Edit className="h-4 w-4" />
+                                  <MessageCircle className="h-4 w-4 mr-1" />
+                                  Message
                                 </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDeletePost(post.id)}
-                                  className="text-red-600 hover:text-red-700"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
+                              )}
+                              {isMyPost && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => startEdit(post)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDeletePost(post.id)}
+                                    className="text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
 
                           <div className="grid grid-cols-2 gap-4 mb-3 text-sm">
@@ -527,112 +543,112 @@ export function FindHittingPartner({
               })
             )}
           </div>
+
+          {/* Create/Edit Post Dialog */}
+          <Dialog open={showCreatePost || editingPost !== null} onOpenChange={(open) => {
+            if (!open) {
+              setShowCreatePost(false);
+              setEditingPost(null);
+              resetForm();
+            }
+          }}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{editingPost ? 'Edit Post' : 'Create Hitting Partner Post'}</DialogTitle>
+                <DialogDescription>
+                  Share your availability and find the perfect practice partner
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {!editingPost && (
+                  <div>
+                    <Label>Facility *</Label>
+                    <Select
+                      value={formData.facilityId}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, facilityId: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select facility" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {memberFacilities.map((facility: any) => (
+                          <SelectItem key={facility.facilityId} value={facility.facilityId}>
+                            {facility.facilityName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div>
+                  <Label>Availability *</Label>
+                  <Input
+                    placeholder="e.g., Weekday mornings, Tuesday & Thursday evenings"
+                    value={formData.availability}
+                    onChange={(e) => setFormData(prev => ({ ...prev, availability: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <Label>Play Style * (Select all that apply)</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {['Singles', 'Doubles', 'Competitive', 'Social', 'Drills', 'Match Play'].map((style) => (
+                      <Badge
+                        key={style}
+                        variant={formData.playStyle.includes(style) ? 'default' : 'outline'}
+                        className="cursor-pointer"
+                        onClick={() => togglePlayStyle(style)}
+                      >
+                        {style}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Description *</Label>
+                  <Textarea
+                    placeholder="Describe what you're looking for in a hitting partner..."
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    rows={4}
+                  />
+                </div>
+
+                <div>
+                  <Label>Expires In (days) *</Label>
+                  <Input
+                    type="number"
+                    min="7"
+                    max="90"
+                    value={formData.expiresInDays}
+                    onChange={(e) => setFormData(prev => ({ ...prev, expiresInDays: parseInt(e.target.value) || 30 }))}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Posts can be active for 7-90 days</p>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowCreatePost(false);
+                      setEditingPost(null);
+                      resetForm();
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={editingPost ? handleUpdatePost : handleCreatePost}>
+                    {editingPost ? 'Update Post' : 'Create Post'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
-
-      {/* Create/Edit Post Dialog */}
-      <Dialog open={showCreatePost || editingPost !== null} onOpenChange={(open) => {
-        if (!open) {
-          setShowCreatePost(false);
-          setEditingPost(null);
-          resetForm();
-        }
-      }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editingPost ? 'Edit Post' : 'Create Hitting Partner Post'}</DialogTitle>
-            <DialogDescription>
-              Share your availability and find the perfect practice partner
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {!editingPost && (
-              <div>
-                <Label>Facility *</Label>
-                <Select
-                  value={formData.facilityId}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, facilityId: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select facility" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {memberFacilities.map((facility: any) => (
-                      <SelectItem key={facility.facilityId} value={facility.facilityId}>
-                        {facility.facilityName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div>
-              <Label>Availability *</Label>
-              <Input
-                placeholder="e.g., Weekday mornings, Tuesday & Thursday evenings"
-                value={formData.availability}
-                onChange={(e) => setFormData(prev => ({ ...prev, availability: e.target.value }))}
-              />
-            </div>
-
-            <div>
-              <Label>Play Style * (Select all that apply)</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {['Singles', 'Doubles', 'Competitive', 'Social', 'Drills', 'Match Play'].map((style) => (
-                  <Badge
-                    key={style}
-                    variant={formData.playStyle.includes(style) ? 'default' : 'outline'}
-                    className="cursor-pointer"
-                    onClick={() => togglePlayStyle(style)}
-                  >
-                    {style}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <Label>Description *</Label>
-              <Textarea
-                placeholder="Describe what you're looking for in a hitting partner..."
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                rows={4}
-              />
-            </div>
-
-            <div>
-              <Label>Expires In (days) *</Label>
-              <Input
-                type="number"
-                min="7"
-                max="90"
-                value={formData.expiresInDays}
-                onChange={(e) => setFormData(prev => ({ ...prev, expiresInDays: parseInt(e.target.value) || 30 }))}
-              />
-              <p className="text-xs text-gray-500 mt-1">Posts can be active for 7-90 days</p>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowCreatePost(false);
-                  setEditingPost(null);
-                  resetForm();
-                }}
-              >
-                Cancel
-              </Button>
-              <Button onClick={editingPost ? handleUpdatePost : handleCreatePost}>
-                {editingPost ? 'Update Post' : 'Create Post'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { Calendar, Search, X, Eye } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { useAuth } from '../../contexts/AuthContext';
-import { adminApi } from '../../api/client';
+import { adminApi, facilitiesApi } from '../../api/client';
 import { toast } from 'sonner';
 
 interface BookingManagementProps {
@@ -70,6 +70,7 @@ export function BookingManagement({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [courts, setCourts] = useState<Array<{ id: string; name: string; courtNumber: number }>>([]);
   const [loading, setLoading] = useState(true);
 
   const currentFacilityId = user?.memberFacilities?.[0];
@@ -85,8 +86,24 @@ export function BookingManagement({
 
       setStartDate(weekAgo.toISOString().split('T')[0]);
       setEndDate(weekAhead.toISOString().split('T')[0]);
+
+      // Load courts for the facility
+      loadCourts();
     }
   }, [currentFacilityId]);
+
+  const loadCourts = async () => {
+    if (!currentFacilityId) return;
+
+    try {
+      const response = await facilitiesApi.getCourts(currentFacilityId);
+      if (response.success && response.data?.courts) {
+        setCourts(response.data.courts);
+      }
+    } catch (error) {
+      console.error('Error loading courts:', error);
+    }
+  };
 
   useEffect(() => {
     if (currentFacilityId && startDate && endDate) {
@@ -111,9 +128,16 @@ export function BookingManagement({
 
       const response = await adminApi.getBookings(currentFacilityId, filters);
 
-      if (response.success && response.data?.bookings) {
+      if (response.success && response.data?.data?.bookings) {
+        const bookings = response.data.data.bookings;
+        console.log(`Loaded ${bookings.length} bookings`);
+        setBookings(bookings);
+      } else if (response.success && response.data?.bookings) {
+        // Fallback for direct structure
+        console.log(`Loaded ${response.data.bookings.length} bookings`);
         setBookings(response.data.bookings);
       } else {
+        console.error('Failed to load bookings:', response.error);
         toast.error(response.error || 'Failed to load bookings');
       }
     } catch (error: any) {
@@ -276,6 +300,11 @@ export function BookingManagement({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Courts</SelectItem>
+                      {courts.map((court) => (
+                        <SelectItem key={court.id} value={court.id}>
+                          {court.name} (Court #{court.courtNumber})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Switch } from './ui/switch';
 import { Separator } from './ui/separator';
 import { UnifiedSidebar } from './UnifiedSidebar';
+import { NotificationBell } from './NotificationBell';
 import { ArrowLeft, Save, Bell, Palette, Clock, Globe } from 'lucide-react';
 
 interface SettingsProps {
@@ -108,12 +109,15 @@ export function Settings({
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back
                 </Button>
-                <h1 className="text-xl font-medium text-gray-900">Settings</h1>
+                <h1 className="text-2xl font-medium text-gray-900">Settings</h1>
               </div>
-              <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
-                <Save className="h-4 w-4 mr-2" />
-                Save Changes
-              </Button>
+              <div className="flex items-center gap-3">
+                <NotificationBell />
+                <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
+                </Button>
+              </div>
             </div>
           </div>
         </header>

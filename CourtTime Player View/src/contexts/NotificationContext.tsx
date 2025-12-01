@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from 'sonner@2.0.3';
+import { notificationsApi } from '../api/client';
+import { useAuth } from './AuthContext';
 
 export interface Notification {
   id: string;
@@ -26,164 +28,96 @@ interface NotificationContextType {
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
   removeNotification: (id: string) => void;
   showToast: (type: Notification['type'], title: string, message: string, reservation?: Notification['relatedReservation']) => void;
+  refreshNotifications: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
 
-// Sample notification data
-const sampleNotifications: Omit<Notification, 'id'>[] = [
-  {
-    type: 'reservation_confirmed',
-    title: 'Court Reservation Confirmed',
-    message: 'Your tennis court booking at Downtown Tennis Center has been confirmed.',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-    read: false,
-    priority: 'high',
-    relatedReservation: {
-      facility: 'Downtown Tennis Center',
-      court: 'Tennis Court 2',
-      date: 'Today',
-      time: '2:00 PM - 3:00 PM'
-    }
-  },
-  {
-    type: 'reservation_reminder',
-    title: 'Court Session Starting Soon',
-    message: 'Your tennis session at Downtown Tennis Center starts in 1 hour.',
-    timestamp: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
-    read: false,
-    priority: 'high',
-    relatedReservation: {
-      facility: 'Downtown Tennis Center',
-      court: 'Tennis Court 2',
-      date: 'Today',
-      time: '2:00 PM - 3:00 PM'
-    }
-  },
-  {
-    type: 'reservation_cancelled',
-    title: 'Reservation Cancelled',
-    message: 'Your pickleball court booking has been cancelled due to court maintenance.',
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-    read: true,
-    priority: 'medium',
-    relatedReservation: {
-      facility: 'Sunrise Valley HOA',
-      court: 'Pickleball Court 1',
-      date: 'Dec 27',
-      time: '9:00 AM - 10:00 AM'
-    }
-  },
-  {
-    type: 'court_change',
-    title: 'Court Assignment Changed',
-    message: 'Your reservation has been moved to Center Court due to scheduling conflicts.',
-    timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3 hours ago
-    read: false,
-    priority: 'medium',
-    relatedReservation: {
-      facility: 'Riverside Tennis Club',
-      court: 'Center Court',
-      date: 'Tomorrow',
-      time: '7:00 PM - 8:30 PM'
-    }
-  },
-  {
-    type: 'payment_received',
-    title: 'Payment Processed',
-    message: 'Payment of $45.00 has been processed for your court reservation.',
-    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-    read: true,
-    priority: 'low',
-    relatedReservation: {
-      facility: 'Downtown Tennis Center',
-      court: 'Tennis Court 2',
-      date: 'Today',
-      time: '2:00 PM - 3:00 PM'
-    }
-  },
-  {
-    type: 'facility_announcement',
-    title: 'New Court Available',
-    message: 'Riverside Tennis Club has added a new premium court with LED lighting.',
-    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-    read: false,
-    priority: 'low'
-  },
-  {
-    type: 'weather_alert',
-    title: 'Weather Advisory',
-    message: 'Rain expected tomorrow evening. Indoor courts available for booking.',
-    timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 hours ago
-    read: true,
-    priority: 'medium'
-  },
-  {
-    type: 'reservation_confirmed',
-    title: 'Pickleball Court Booked',
-    message: 'Your morning pickleball session at Sunrise Valley HOA is confirmed.',
-    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 hours ago
-    read: true,
-    priority: 'high',
-    relatedReservation: {
-      facility: 'Sunrise Valley HOA',
-      court: 'Pickleball Court 1',
-      date: 'Dec 28',
-      time: '10:00 AM - 11:00 AM'
-    }
-  },
-  {
-    type: 'reservation_reminder',
-    title: 'Don\'t Forget Your Match',
-    message: 'You have a tennis match tomorrow evening at Riverside Tennis Club.',
-    timestamp: new Date(Date.now() - 18 * 60 * 60 * 1000), // 18 hours ago
-    read: true,
-    priority: 'medium',
-    relatedReservation: {
-      facility: 'Riverside Tennis Club',
-      court: 'Center Court',
-      date: 'Tomorrow',
-      time: '7:00 PM - 8:30 PM'
-    }
-  },
-  {
-    type: 'facility_announcement',
-    title: 'Holiday Hours Update',
-    message: 'All facilities will have modified hours during the holiday season.',
-    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-    read: true,
-    priority: 'low'
-  }
-];
-
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
+  // Fetch notifications from database
+  const refreshNotifications = async () => {
+    if (!user?.id || loading) return;
+
+    try {
+      setLoading(true);
+      const response = await notificationsApi.getNotifications(user.id);
+
+      if (response.success && response.data?.data?.notifications) {
+        const dbNotifications = response.data.data.notifications.map((n: any) => ({
+          ...n,
+          timestamp: new Date(n.timestamp)
+        }));
+        setNotifications(dbNotifications);
+
+        // Update unread count
+        const unread = dbNotifications.filter((n: Notification) => !n.read).length;
+        setUnreadCount(unread);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial load and periodic refresh
   useEffect(() => {
-    // Initialize with sample data
-    const initialNotifications = sampleNotifications.map((notification, index) => ({
-      ...notification,
-      id: `notification-${index + 1}`
-    }));
-    setNotifications(initialNotifications);
-  }, []);
+    if (user?.id) {
+      refreshNotifications();
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+      // Refresh notifications every 30 seconds
+      const interval = setInterval(refreshNotifications, 30000);
+      return () => clearInterval(interval);
+    } else {
+      // Clear notifications when user logs out
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  }, [user?.id]);
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev => 
-      prev.map(notification => 
-        notification.id === id 
+  const markAsRead = async (id: string) => {
+    // Optimistically update UI
+    setNotifications(prev =>
+      prev.map(notification =>
+        notification.id === id
           ? { ...notification, read: true }
           : notification
       )
     );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+
+    // Update in database
+    try {
+      await notificationsApi.markAsRead(id);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      // Refresh to get correct state
+      refreshNotifications();
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => 
+  const markAllAsRead = async () => {
+    if (!user?.id) return;
+
+    // Optimistically update UI
+    setNotifications(prev =>
       prev.map(notification => ({ ...notification, read: true }))
     );
+    setUnreadCount(0);
+
+    // Update in database
+    try {
+      await notificationsApi.markAllAsRead(user.id);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      // Refresh to get correct state
+      refreshNotifications();
+    }
   };
 
   const addNotification = (notificationData: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
@@ -193,12 +127,40 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       timestamp: new Date(),
       read: false
     };
-    
+
     setNotifications(prev => [newNotification, ...prev]);
+    setUnreadCount(prev => prev + 1);
+
+    // If user is logged in, also save to database
+    if (user?.id) {
+      notificationsApi.create({
+        userId: user.id,
+        title: notificationData.title,
+        message: notificationData.message,
+        type: notificationData.type,
+        actionUrl: notificationData.actionUrl,
+        priority: notificationData.priority
+      }).catch(error => {
+        console.error('Error creating notification in database:', error);
+      });
+    }
   };
 
-  const removeNotification = (id: string) => {
+  const removeNotification = async (id: string) => {
     setNotifications(prev => prev.filter(notification => notification.id !== id));
+
+    // Update unread count if notification was unread
+    const notification = notifications.find(n => n.id === id);
+    if (notification && !notification.read) {
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+
+    // Delete from database
+    try {
+      await notificationsApi.delete(id);
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
   };
 
   const showToast = (
@@ -287,7 +249,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     markAllAsRead,
     addNotification,
     removeNotification,
-    showToast
+    showToast,
+    refreshNotifications
   };
 
   return (

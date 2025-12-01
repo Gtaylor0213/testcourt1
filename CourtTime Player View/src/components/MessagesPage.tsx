@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UnifiedSidebar } from './UnifiedSidebar';
+import { NotificationBell } from './NotificationBell';
 import { Messages } from './Messages';
 import { useAuth } from '../contexts/AuthContext';
 import { playerProfileApi } from '../api/client';
@@ -91,9 +92,12 @@ export function MessagesPage({
 
       <div className={`${sidebarCollapsed ? 'ml-16' : 'ml-64'} transition-all duration-300 ease-in-out`}>
         <div className="p-6">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold">Messages</h1>
-            <p className="text-gray-600 mt-1">Chat with other players at your facility</p>
+          <div className="mb-6 flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-medium">Messages</h1>
+              <p className="text-gray-600 mt-1">Chat with other players at your facility</p>
+            </div>
+            <NotificationBell />
           </div>
 
           {loading ? (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UnifiedSidebar } from './UnifiedSidebar';
+import { NotificationBell } from './NotificationBell';
 import { ArrowLeft, MapPin, Phone, Mail, Globe, Clock, Users, Star, Calendar, Clipboard, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -144,6 +145,7 @@ export function ClubInfo({
           onNavigateToPlayerDashboard={onNavigateToPlayerDashboard}
           onNavigateToCalendar={onNavigateToCalendar}
           onNavigateToClub={onNavigateToClub}
+          onNavigateToBulletinBoard={onNavigateToBulletinBoard}
           onNavigateToHittingPartner={onNavigateToHittingPartner}
           onNavigateToMessages={onNavigateToMessages}
           onLogout={onLogout}
@@ -178,6 +180,7 @@ export function ClubInfo({
         onNavigateToPlayerDashboard={onNavigateToPlayerDashboard}
         onNavigateToCalendar={onNavigateToCalendar}
         onNavigateToClub={onNavigateToClub}
+        onNavigateToBulletinBoard={onNavigateToBulletinBoard}
         onNavigateToHittingPartner={onNavigateToHittingPartner}
         onNavigateToMessages={onNavigateToMessages}
         onLogout={onLogout}
@@ -190,13 +193,8 @@ export function ClubInfo({
         {/* Header */}
         <div className="bg-white border-b border-gray-200 p-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Button variant="ghost" onClick={onBack} className="mr-4">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-              <h1>Club Information</h1>
-            </div>
+            <h1 className="text-2xl font-medium">Club Information</h1>
+            <NotificationBell />
           </div>
         </div>
 

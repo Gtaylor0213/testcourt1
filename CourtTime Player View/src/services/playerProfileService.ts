@@ -248,31 +248,69 @@ export async function requestFacilityMembership(
 export async function getUserBookings(userId: string, upcoming: boolean = true): Promise<any[]> {
   try {
     const dateCondition = upcoming
-      ? 'AND (b.booking_date > CURRENT_DATE OR (b.booking_date = CURRENT_DATE AND b.start_time > CURRENT_TIME))'
+      ? `AND b.booking_date >= CURRENT_DATE`
       : '';
 
     const result = await query(
       `SELECT
         b.id,
-        b.booking_date as "bookingDate",
+        b.court_id as "courtId",
+        b.user_id as "userId",
+        b.facility_id as "facilityId",
+        TO_CHAR(b.booking_date, 'YYYY-MM-DD') as "bookingDate",
         b.start_time as "startTime",
         b.end_time as "endTime",
+        b.duration_minutes as "durationMinutes",
         b.status,
         b.booking_type as "bookingType",
         b.notes,
+        b.created_at as "createdAt",
+        b.updated_at as "updatedAt",
         f.name as "facilityName",
         c.name as "courtName",
-        c.court_type as "courtType"
+        c.court_type as "courtType",
+        u.full_name as "userName",
+        u.email as "userEmail"
        FROM bookings b
        JOIN facilities f ON b.facility_id = f.id
        JOIN courts c ON b.court_id = c.id
-       WHERE b.user_id = $1 ${dateCondition}
+       JOIN users u ON b.user_id = u.id
+       WHERE b.user_id = $1
+         AND b.status != 'cancelled'
+         ${dateCondition}
        ORDER BY b.booking_date ASC, b.start_time ASC
-       LIMIT 10`,
+       LIMIT 50`,
       [userId]
     );
 
-    return result.rows;
+    // If upcoming, filter out bookings that have already ended today
+    if (upcoming && result.rows.length > 0) {
+      const now = new Date();
+      const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const currentTime = now.toTimeString().split(' ')[0]; // HH:MM:SS
+
+      console.log('Filtering bookings - Current date:', currentDate, 'Current time:', currentTime);
+
+      const filtered = result.rows.filter(booking => {
+        // Keep all future dates
+        if (booking.bookingDate > currentDate) {
+          console.log(`  ✓ Keeping ${booking.facilityName} ${booking.courtName} ${booking.startTime}-${booking.endTime} (future date: ${booking.bookingDate})`);
+          return true;
+        }
+        // For today, only keep bookings that haven't ended yet
+        if (booking.bookingDate === currentDate) {
+          const keep = booking.endTime >= currentTime;
+          console.log(`  ${keep ? '✓' : '✗'} ${booking.facilityName} ${booking.courtName} ${booking.startTime}-${booking.endTime} (today, endTime ${booking.endTime} ${keep ? '>=' : '<'} ${currentTime})`);
+          return keep;
+        }
+        return false;
+      });
+
+      console.log(`Filtered ${filtered.length} bookings from ${result.rows.length} total`);
+      return filtered.slice(0, 10);
+    }
+
+    return result.rows.slice(0, 10);
   } catch (error) {
     console.error('Get user bookings error:', error);
     throw new Error('Failed to fetch user bookings');

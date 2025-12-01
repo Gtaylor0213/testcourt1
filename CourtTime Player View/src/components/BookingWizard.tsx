@@ -175,20 +175,20 @@ export function BookingWizard({ isOpen, onClose, court, courtId, date, time, fac
 
   const getTimeRangeForSelectedSlots = () => {
     if (!selectedSlots || selectedSlots.length === 0) return null;
-    
+
     // Sort slots by time
     const sortedSlots = [...selectedSlots].sort((a, b) => {
       const timeA = a.time;
       const timeB = b.time;
       return timeA.localeCompare(timeB);
     });
-    
+
     const firstSlot = sortedSlots[0];
     const lastSlot = sortedSlots[sortedSlots.length - 1];
-    
+
     return {
       start: firstSlot.time,
-      end: calculateEndTime(lastSlot.time, '1')
+      end: calculateEndTime(lastSlot.time, '0.25') // Each slot is 15 minutes
     };
   };
 
@@ -260,11 +260,15 @@ export function BookingWizard({ isOpen, onClose, court, courtId, date, time, fac
                   <SelectValue placeholder="Select duration" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="0.25">15 minutes</SelectItem>
                   <SelectItem value="0.5">30 minutes</SelectItem>
+                  <SelectItem value="0.75">45 minutes</SelectItem>
                   <SelectItem value="1">1 hour</SelectItem>
-                  <SelectItem value="1.5">1.5 hours</SelectItem>
+                  <SelectItem value="1.25">1 hour 15 minutes</SelectItem>
+                  <SelectItem value="1.5">1 hour 30 minutes</SelectItem>
+                  <SelectItem value="1.75">1 hour 45 minutes</SelectItem>
                   <SelectItem value="2">2 hours</SelectItem>
-                  <SelectItem value="2.5">2.5 hours</SelectItem>
+                  <SelectItem value="2.5">2 hours 30 minutes</SelectItem>
                   <SelectItem value="3">3 hours</SelectItem>
                 </SelectContent>
               </Select>

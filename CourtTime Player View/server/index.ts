@@ -23,6 +23,7 @@ import bookingRoutes from './routes/bookings';
 import adminRoutes from './routes/admin';
 import addressWhitelistRoutes from './routes/addressWhitelist';
 import messagesRoutes from './routes/messages';
+import notificationRoutes from './routes/notifications';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -55,6 +56,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/address-whitelist', addressWhitelistRoutes);
 app.use('/api/messages', messagesRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -101,6 +103,7 @@ async function startServer() {
       console.log(`   📅 Bookings: /api/bookings`);
       console.log(`   🔧 Admin: /api/admin`);
       console.log(`   📍 Address Whitelist: /api/address-whitelist`);
+      console.log(`   🔔 Notifications: /api/notifications`);
       console.log(`\n${'='.repeat(60)}\n`);
     });
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UnifiedSidebar } from './UnifiedSidebar';
+import { NotificationBell } from './NotificationBell';
 import { ArrowLeft, Calendar, Clock, Users, MapPin, Tag, Pin, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -215,7 +216,7 @@ export function BulletinBoard({
         <div className="bg-white border-b border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Bulletin Board</h1>
+              <h1 className="text-2xl font-medium">Bulletin Board</h1>
               <p className="text-sm text-gray-600">
                 {hasNoFacilities
                   ? 'Join a facility to see events and announcements'
@@ -224,6 +225,7 @@ export function BulletinBoard({
             </div>
             {!hasNoFacilities && (
               <div className="flex items-center gap-3">
+                <NotificationBell />
                 <Select value={selectedFacility} onValueChange={setSelectedFacility}>
                   <SelectTrigger className="w-[240px]">
                     <SelectValue placeholder="Select a facility" />

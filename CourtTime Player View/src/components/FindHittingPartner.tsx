@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UnifiedSidebar } from './UnifiedSidebar';
+import { NotificationBell } from './NotificationBell';
 import { Search, Filter, Users, Calendar, Plus, X, Building, Edit, Trash2, AlertCircle, MessageCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { hittingPartnerApi, playerProfileApi } from '../api/client';
@@ -324,15 +325,18 @@ export function FindHittingPartner({
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-2xl font-bold">Find Hitting Partner</h1>
+              <h1 className="text-2xl font-medium">Find Hitting Partner</h1>
               <p className="text-gray-600 mt-1">Connect with players looking for practice partners</p>
             </div>
-            {!hasNoFacilities && (
-              <Button onClick={() => setShowCreatePost(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Post
-              </Button>
-            )}
+            <div className="flex items-center gap-3">
+              <NotificationBell />
+              {!hasNoFacilities && (
+                <Button onClick={() => setShowCreatePost(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Post
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* No Facility Alert */}

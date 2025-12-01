@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Search, MessageCircle, Users, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { messagesApi } from '../api/client';
+import { messagesApi, membersApi } from '../api/client';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -49,6 +49,13 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // For starting new conversations
+  const [newConversationUser, setNewConversationUser] = useState<{
+    id: string;
+    name: string;
+    email: string;
+  } | null>(null);
+
   useEffect(() => {
     if (facilityId && user?.id) {
       loadConversations();
@@ -70,7 +77,7 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
 
   // Auto-select conversation when recipient is specified
   useEffect(() => {
-    if (selectedRecipientId && conversations.length > 0 && user?.id) {
+    if (selectedRecipientId && user?.id && facilityId) {
       // Try to find existing conversation with this recipient
       const existingConv = conversations.find(
         conv => conv.otherUser.id === selectedRecipientId
@@ -79,13 +86,35 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
       if (existingConv) {
         // Select the existing conversation
         setSelectedConversation(existingConv.id);
+        setNewConversationUser(null);
       } else {
-        // No existing conversation - we'll automatically start one when they send the first message
-        // For now, just show a helpful message in the UI
-        toast.info('Start a conversation by sending a message');
+        // No existing conversation - fetch user details and start a new conversation
+        loadRecipientDetails(selectedRecipientId);
       }
     }
-  }, [selectedRecipientId, conversations, user?.id]);
+  }, [selectedRecipientId, conversations, user?.id, facilityId]);
+
+  const loadRecipientDetails = async (recipientId: string) => {
+    try {
+      const response = await membersApi.getMemberDetails(facilityId, recipientId);
+
+      if (response.success && response.data?.member) {
+        const member = response.data.member;
+        // Create a new conversation UI state
+        setNewConversationUser({
+          id: member.user_id,
+          name: member.name,
+          email: member.email
+        });
+        setSelectedConversation(null); // Clear any existing selection
+        setMessages([]); // Clear messages
+        toast.success(`Starting new conversation with ${member.name}`);
+      }
+    } catch (error) {
+      console.error('Error loading recipient details:', error);
+      toast.error('Could not load user details');
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -139,7 +168,41 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || !user?.id) return;
+    if (!newMessage.trim() || !user?.id) return;
+
+    // Handle new conversation
+    if (newConversationUser && !selectedConversation) {
+      try {
+        setSending(true);
+        const response = await messagesApi.sendMessage(
+          user.id,
+          newConversationUser.id,
+          facilityId,
+          newMessage
+        );
+
+        if (response.success && response.data?.data?.message) {
+          setMessages(prev => [...prev, response.data.data.message]);
+        } else if (response.success && response.data?.message) {
+          setMessages(prev => [...prev, response.data.message]);
+        }
+
+        setNewMessage('');
+        // Reload conversations to get the newly created conversation
+        await loadConversations();
+        setNewConversationUser(null);
+        toast.success('Message sent!');
+      } catch (error) {
+        console.error('Error sending message:', error);
+        toast.error('Failed to send message');
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
+
+    // Handle existing conversation
+    if (!selectedConversation) return;
 
     const selectedConv = conversations.find(c => c.id === selectedConversation);
     if (!selectedConv) return;
@@ -194,7 +257,8 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
     }
   };
 
-  const getInitials = (name: string) => {
+  const getInitials = (name?: string) => {
+    if (!name) return '??';
     return name
       .split(' ')
       .map(n => n[0])
@@ -292,25 +356,30 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
 
       {/* Messages Area */}
       <div className="flex-1 flex flex-col">
-        {selectedConv ? (
+        {selectedConv || newConversationUser ? (
           <>
             {/* Chat Header */}
             <div className="p-4 border-b flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Avatar>
                   <AvatarFallback className="bg-blue-100 text-blue-700">
-                    {getInitials(selectedConv.otherUser.name)}
+                    {getInitials(selectedConv?.otherUser.name || newConversationUser?.name)}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h3 className="font-semibold">{selectedConv.otherUser.name}</h3>
+                  <h3 className="font-semibold">
+                    {selectedConv?.otherUser.name || newConversationUser?.name}
+                  </h3>
                   <p className="text-sm text-gray-500">{facilityName}</p>
                 </div>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setSelectedConversation(null)}
+                onClick={() => {
+                  setSelectedConversation(null);
+                  setNewConversationUser(null);
+                }}
                 className="lg:hidden"
               >
                 <X className="h-4 w-4" />

@@ -140,7 +140,7 @@ export function QuickReservation({
                 <h1 className="text-xl font-medium">Quick Reservation</h1>
               </div>
               <div className="flex items-center gap-4">
-                <Badge variant="outline">{userType === 'admin' ? 'Admin Mode' : 'Player Mode'}</Badge>
+                <Badge variant="outline">Player Mode</Badge>
               </div>
             </div>
           </div>

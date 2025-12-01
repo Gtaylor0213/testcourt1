@@ -186,7 +186,7 @@ export function UnifiedSidebar({
         <div className={`${isCollapsed ? 'p-3' : 'p-6'} border-b border-gray-200 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!isCollapsed && (
             <div className="flex items-center">
-              <img src={logoImage} alt="CourtTime" className="h-8 w-auto" />
+              <img src={logoImage} alt="CourtTime" className="h-10 w-auto" />
             </div>
           )}
           {onToggleCollapse && (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UnifiedSidebar } from '../UnifiedSidebar';
+import { NotificationBell } from '../NotificationBell';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Calendar, Users, TrendingUp, DollarSign } from 'lucide-react';
 import { adminApi } from '../../api/client';
@@ -159,7 +160,10 @@ export function AdminDashboard({
 
       <div className={`${sidebarCollapsed ? 'ml-16' : 'ml-64'} transition-all duration-300 ease-in-out p-8`}>
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Admin Dashboard</h1>
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-2xl font-medium text-gray-900">Admin Dashboard</h1>
+            <NotificationBell />
+          </div>
 
           {loading ? (
             <div className="flex items-center justify-center h-64">

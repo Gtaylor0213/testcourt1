@@ -6,7 +6,8 @@ import { Badge } from './ui/badge';
 import { UnifiedSidebar } from './UnifiedSidebar';
 import { BookingWizard } from './BookingWizard';
 import { QuickReservePopup } from './QuickReservePopup';
-import { NotificationDropdown } from './NotificationDropdown';
+import { NotificationBell } from './NotificationBell';
+import { ReservationDetailsModal } from './ReservationDetailsModal';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { facilitiesApi, usersApi, bookingApi } from '../api/client';
@@ -87,6 +88,12 @@ export function CourtCalendarView({
 
   // Quick reserve popup state
   const [showQuickReserve, setShowQuickReserve] = useState(false);
+
+  // Reservation details modal state
+  const [reservationDetailsModal, setReservationDetailsModal] = useState({
+    isOpen: false,
+    reservation: null as any
+  });
 
   // Update current time every minute
   useEffect(() => {
@@ -181,19 +188,43 @@ export function CourtCalendarView({
 
           // Convert 24h time to 12h format for UI
           const startTime = formatTimeTo12Hour(booking.startTime);
-          console.log('  📍 Booking:', courtName, 'at', startTime, '- User:', booking.userName);
+          const endTime24 = booking.endTime;
+          console.log('  📍 Booking:', courtName, 'from', startTime, '- User:', booking.userName, '- Duration:', booking.durationMinutes, 'min');
 
           if (!transformedBookings[courtName]) {
             transformedBookings[courtName] = {};
           }
 
-          transformedBookings[courtName][startTime] = {
-            player: booking.userName || 'Reserved',
-            duration: `${booking.durationMinutes}min`,
-            type: 'reservation',
-            bookingId: booking.id,
-            userId: booking.userId
-          };
+          // Calculate how many 15-minute slots this booking spans
+          const slotsToFill = Math.ceil(booking.durationMinutes / 15);
+
+          // Parse start time to calculate subsequent slots
+          const [startHours, startMinutes] = booking.startTime.split(':').map(Number);
+
+          // Fill all slots that this booking occupies
+          for (let i = 0; i < slotsToFill; i++) {
+            const slotMinutes = startMinutes + (i * 15);
+            const slotHours = startHours + Math.floor(slotMinutes / 60);
+            const actualMinutes = slotMinutes % 60;
+
+            // Convert to 12h format
+            const period = slotHours >= 12 ? 'PM' : 'AM';
+            const displayHour = slotHours > 12 ? slotHours - 12 : slotHours === 0 ? 12 : slotHours;
+            const slotTime = `${displayHour}:${actualMinutes.toString().padStart(2, '0')} ${period}`;
+
+            transformedBookings[courtName][slotTime] = {
+              player: booking.userName || 'Reserved',
+              duration: `${booking.durationMinutes}min`,
+              type: 'reservation',
+              bookingId: booking.id,
+              userId: booking.userId,
+              isFirstSlot: i === 0, // Mark first slot for display purposes
+              fullDetails: {
+                ...booking,
+                facilityName: currentFacility?.name
+              }
+            };
+          }
         });
 
         console.log('🎨 Transformed bookings:', transformedBookings);
@@ -359,12 +390,19 @@ export function CourtCalendarView({
     return slotTime < currentTime;
   }, [selectedDate, currentTime, isToday]);
 
-  // Generate time slots for the day
-  const allTimeSlots = [
-    '6:00 AM', '7:00 AM', '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM',
-    '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM',
-    '6:00 PM', '7:00 PM', '8:00 PM', '9:00 PM'
-  ];
+  // Generate time slots for the day (15-minute intervals)
+  const allTimeSlots = React.useMemo(() => {
+    const slots = [];
+    for (let hour = 6; hour <= 21; hour++) {
+      for (let minute = 0; minute < 60; minute += 15) {
+        const period = hour >= 12 ? 'PM' : 'AM';
+        const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+        const displayMinute = minute.toString().padStart(2, '0');
+        slots.push(`${displayHour}:${displayMinute} ${period}`);
+      }
+    }
+    return slots;
+  }, []);
 
   // Filter time slots to only show current time and after for today
   const timeSlots = React.useMemo(() => {
@@ -397,9 +435,12 @@ export function CourtCalendarView({
 
   const handleBookingClick = (court: string, time: string) => {
     const booking = bookings[court as keyof typeof bookings]?.[time];
-    if (booking?.type === 'available') {
-      // Handle booking logic
-      console.log(`Booking ${court} at ${time}`);
+    if (booking?.type === 'reservation' && booking.fullDetails) {
+      // Open reservation details modal
+      setReservationDetailsModal({
+        isOpen: true,
+        reservation: booking.fullDetails
+      });
     }
   };
 
@@ -573,6 +614,30 @@ export function CourtCalendarView({
     });
   };
 
+  const closeReservationDetailsModal = () => {
+    setReservationDetailsModal({
+      isOpen: false,
+      reservation: null
+    });
+  };
+
+  const handleCancelReservation = async (reservationId: string) => {
+    try {
+      const response = await bookingApi.cancel(reservationId, user?.id || '');
+      if (response.success) {
+        // Refresh bookings after cancellation
+        await fetchBookings();
+        // Close the modal
+        closeReservationDetailsModal();
+      } else {
+        alert(response.error || 'Failed to cancel reservation');
+      }
+    } catch (error) {
+      console.error('Error canceling reservation:', error);
+      alert('Failed to cancel reservation. Please try again.');
+    }
+  };
+
 
 
   // Helper function to get current time position for the red line
@@ -628,19 +693,16 @@ export function CourtCalendarView({
               </div>
               
               <div className="flex items-center gap-4">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setShowQuickReserve(true)}
                   className="flex items-center gap-2"
                 >
                   <Calendar className="h-4 w-4" />
                   Quick Reserve
                 </Button>
-                <Button variant="ghost" size="sm" className="relative">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full text-xs"></span>
-                </Button>
+                <NotificationBell />
               </div>
             </div>
           </div>
@@ -777,35 +839,48 @@ export function CourtCalendarView({
                 {/* Time Slots */}
                 {timeSlots.map((time, timeIndex) => {
                   const isPast = isPastTime(time);
+                  const isHourMark = time.endsWith(':00 AM') || time.endsWith(':00 PM');
                   return (
-                    <div key={timeIndex} className="grid grid-cols-[120px_repeat(var(--court-count),_200px)] border-b border-gray-100 last:border-b-0" style={{'--court-count': courts.length} as React.CSSProperties}>
-                      <div className={`p-4 border-r border-gray-200 bg-gray-50 ${isPast ? 'opacity-50' : ''}`}>
-                        <span className="font-medium text-sm">{time}</span>
+                    <div key={timeIndex} className={`grid grid-cols-[120px_repeat(var(--court-count),_200px)] border-b last:border-b-0 ${isHourMark ? 'border-gray-300' : 'border-gray-100'}`} style={{'--court-count': courts.length} as React.CSSProperties}>
+                      <div className={`p-2 border-r border-gray-200 bg-gray-50 ${isPast ? 'opacity-50' : ''}`}>
+                        <span className={`text-xs ${isHourMark ? 'font-semibold' : 'font-normal'}`}>{time}</span>
                       </div>
                       {courts.map((court, courtIndex) => {
                         const booking = bookings[court.name as keyof typeof bookings]?.[time];
                         return (
-                          <div 
-                            key={courtIndex} 
+                          <div
+                            key={courtIndex}
                             className={`
-                              p-2 border-r border-gray-200 last:border-r-0 min-h-[60px] relative
+                              p-1 border-r border-gray-200 last:border-r-0 min-h-[40px] relative
                               ${isPast ? 'bg-gray-100 opacity-50' : ''}
                               ${!booking && !isPast ? 'cursor-pointer hover:bg-gray-50' : ''}
+                              ${booking ? 'cursor-pointer' : ''}
                               ${dragState.selectedCells.has(`${court.name}|${time}`) ? 'bg-blue-100 border-blue-300' : ''}
                               ${dragState.isDragging && !booking && !isPast ? 'select-none' : ''}
                             `}
-                            onClick={() => !booking && !isPast && handleEmptySlotClick(court.name, time)}
+                            onClick={() => {
+                              if (booking) {
+                                handleBookingClick(court.name, time);
+                              } else if (!isPast) {
+                                handleEmptySlotClick(court.name, time);
+                              }
+                            }}
                             onMouseDown={(e) => !booking && !isPast && handleMouseDown(court.name, time, e)}
                             onMouseEnter={() => handleMouseEnter(court.name, time)}
                           >
-                            {booking && booking.type === 'reservation' && (
-                              <div className={`p-2 rounded-md h-full border ${
-                                court.type === 'tennis' 
-                                  ? 'bg-blue-100 text-blue-800 border-blue-300' 
-                                  : 'bg-green-100 text-green-800 border-green-300'
-                              }`}>
-                                <div className="text-xs font-medium">{booking.player}</div>
-                                <div className="text-xs opacity-75">{booking.duration}</div>
+                            {booking && booking.type === 'reservation' && booking.isFirstSlot && (
+                              <div
+                                className={`p-1 rounded-md border transition-colors hover:opacity-80 absolute top-0 left-0 right-0 ${
+                                  court.type === 'tennis'
+                                    ? 'bg-blue-100 text-blue-800 border-blue-300'
+                                    : 'bg-green-100 text-green-800 border-green-300'
+                                }`}
+                                style={{
+                                  height: `${Math.ceil(parseInt(booking.duration) / 15) * 40}px`
+                                }}
+                              >
+                                <div className="text-[10px] font-medium leading-tight">{booking.player}</div>
+                                <div className="text-[9px] opacity-75">{booking.duration}</div>
                               </div>
                             )}
                             {isPast && !booking && (
@@ -870,6 +945,14 @@ export function CourtCalendarView({
         onReserve={handleQuickReserve}
         facilities={memberFacilities}
         selectedFacilityId={selectedFacility}
+      />
+
+      {/* Reservation Details Modal */}
+      <ReservationDetailsModal
+        isOpen={reservationDetailsModal.isOpen}
+        onClose={closeReservationDetailsModal}
+        reservation={reservationDetailsModal.reservation}
+        onCancelReservation={handleCancelReservation}
       />
     </div>
   );

@@ -43,7 +43,8 @@
       "Bash(node scripts/populate-sample-data.js:*)",
       "Bash(dir:*)",
       "Bash(node scripts/migrate-conversations.js:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(node scripts/check-bookings.js:*)"
     ],
     "deny": [],
     "ask": []

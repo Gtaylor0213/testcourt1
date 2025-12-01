@@ -269,7 +269,7 @@ function AppContent() {
       {currentScreen === 'player-dashboard' && (
         <PlayerDashboard
           onLogout={handleLogout}
-          onQuickBook={navigateToQuickReservation}
+          onQuickBook={navigateToCourtCalendar}
           onNavigateToProfile={navigateToProfile}
           onNavigateToCalendar={navigateToCourtCalendar}
           onNavigateToClub={navigateToClub}

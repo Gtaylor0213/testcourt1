@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Badge } from './ui/badge';
 import { UnifiedSidebar } from './UnifiedSidebar';
 import { NotificationDropdown } from './NotificationDropdown';
+import { ReservationManagementModal } from './ReservationManagementModal';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { playerProfileApi } from '../api/client';
@@ -42,6 +43,8 @@ export function PlayerDashboard({
   const [loading, setLoading] = useState(true);
   const [upcomingBookings, setUpcomingBookings] = useState<any[]>([]);
   const [memberFacilities, setMemberFacilities] = useState<any[]>([]);
+  const [selectedReservation, setSelectedReservation] = useState<any>(null);
+  const [showReservationModal, setShowReservationModal] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -92,14 +95,22 @@ export function PlayerDashboard({
   };
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    // Parse date string as local time to avoid timezone issues
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    if (date.toDateString() === today.toDateString()) {
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+
+    if (compareDate.getTime() === today.getTime()) {
       return 'Today';
-    } else if (date.toDateString() === tomorrow.toDateString()) {
+    } else if (compareDate.getTime() === tomorrow.getTime()) {
       return 'Tomorrow';
     } else {
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -134,6 +145,21 @@ export function PlayerDashboard({
   const getFirstName = () => {
     if (!user?.fullName) return 'there';
     return user.fullName.split(' ')[0];
+  };
+
+  const handleReservationClick = (booking: any) => {
+    setSelectedReservation(booking);
+    setShowReservationModal(true);
+  };
+
+  const handleCloseReservationModal = () => {
+    setShowReservationModal(false);
+    setSelectedReservation(null);
+  };
+
+  const handleReservationUpdate = () => {
+    // Reload dashboard data after reservation update
+    loadDashboardData();
   };
 
   if (loading) {
@@ -264,7 +290,11 @@ export function PlayerDashboard({
                   ) : (
                     <div className="space-y-4">
                       {upcomingBookings.map((booking) => (
-                        <div key={booking.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div
+                          key={booking.id}
+                          onClick={() => handleReservationClick(booking)}
+                          className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
                           <div className="flex items-center gap-4">
                             <div className="w-2 h-10 bg-blue-500 rounded-full"></div>
                             <div>
@@ -379,6 +409,14 @@ export function PlayerDashboard({
           </div>
         </main>
       </div>
+
+      {/* Reservation Management Modal */}
+      <ReservationManagementModal
+        isOpen={showReservationModal}
+        onClose={handleCloseReservationModal}
+        reservation={selectedReservation}
+        onUpdate={handleReservationUpdate}
+      />
     </div>
   );
 }

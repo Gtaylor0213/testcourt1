@@ -487,3 +487,52 @@ export const messagesApi = {
     });
   },
 };
+
+// Notifications API
+export const notificationsApi = {
+  // Get all notifications for a user
+  getNotifications: async (userId: string) => {
+    return apiRequest(`/api/notifications/${userId}`);
+  },
+
+  // Get unread count for a user
+  getUnreadCount: async (userId: string) => {
+    return apiRequest(`/api/notifications/${userId}/unread-count`);
+  },
+
+  // Mark a notification as read
+  markAsRead: async (notificationId: string) => {
+    return apiRequest(`/api/notifications/${notificationId}/read`, {
+      method: 'PATCH',
+    });
+  },
+
+  // Mark all notifications as read for a user
+  markAllAsRead: async (userId: string) => {
+    return apiRequest(`/api/notifications/${userId}/read-all`, {
+      method: 'PATCH',
+    });
+  },
+
+  // Create a notification (for testing or admin use)
+  create: async (data: {
+    userId: string;
+    title: string;
+    message: string;
+    type: string;
+    actionUrl?: string;
+    priority?: 'low' | 'medium' | 'high';
+  }) => {
+    return apiRequest('/api/notifications', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Delete a notification
+  delete: async (notificationId: string) => {
+    return apiRequest(`/api/notifications/${notificationId}`, {
+      method: 'DELETE',
+    });
+  },
+};

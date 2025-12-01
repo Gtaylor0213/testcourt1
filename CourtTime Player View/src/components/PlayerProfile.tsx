@@ -8,6 +8,7 @@ import { Textarea } from './ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { ArrowLeft, Save, User, Building2, Plus, CheckCircle, Clock, XCircle, Camera } from 'lucide-react';
 import { UnifiedSidebar } from './UnifiedSidebar';
+import { NotificationBell } from './NotificationBell';
 import { useAuth } from '../contexts/AuthContext';
 import { playerProfileApi, facilitiesApi } from '../api/client';
 import { toast } from 'sonner';
@@ -345,17 +346,10 @@ export function PlayerProfile({
         <header className="bg-white border-b border-gray-200">
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
-              <div className="flex items-center gap-6">
-                <Button variant="ghost" onClick={onBack} className="flex items-center gap-2">
-                  <ArrowLeft className="h-4 w-4" />
-                  Back
-                </Button>
-                <div className="h-6 w-px bg-gray-300"></div>
-                <img src={logoImage} alt="CourtTime" className="h-8 w-auto" />
-                <h1 className="text-xl font-medium">Player Profile</h1>
-              </div>
+              <h1 className="text-2xl font-medium">Player Profile</h1>
 
               <div className="flex items-center gap-4">
+                <NotificationBell />
                 {isEditing ? (
                   <>
                     <Button variant="outline" onClick={() => setIsEditing(false)} disabled={saving}>

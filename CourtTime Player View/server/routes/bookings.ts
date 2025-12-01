@@ -7,6 +7,8 @@ import {
   cancelBooking,
   getBookingById
 } from '../../src/services/bookingService';
+import { notificationService } from '../../src/services/notificationService';
+import { pool } from '../../src/database/connection';
 
 const router = express.Router();
 
@@ -155,6 +157,31 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json(result);
     }
 
+    // Create notification for booking confirmation
+    try {
+      // Get booking details for notification
+      const facilityQuery = await pool.query('SELECT name FROM facilities WHERE id = $1', [facilityId]);
+      const courtQuery = await pool.query('SELECT name FROM courts WHERE id = $1', [courtId]);
+
+      const facilityName = facilityQuery.rows[0]?.name || 'Your facility';
+      const courtName = courtQuery.rows[0]?.name || 'Court';
+
+      // Create the start and end datetime objects
+      const startDateTime = new Date(`${bookingDate}T${startTime}`);
+      const endDateTime = new Date(`${bookingDate}T${endTime}`);
+
+      await notificationService.notifyBookingConfirmed(
+        userId,
+        facilityName,
+        courtName,
+        startDateTime,
+        endDateTime
+      );
+    } catch (notificationError) {
+      console.error('Error creating booking notification:', notificationError);
+      // Don't fail the booking if notification fails
+    }
+
     res.status(201).json(result);
   } catch (error) {
     next(error);
@@ -177,10 +204,37 @@ router.delete('/:bookingId', async (req, res, next) => {
       });
     }
 
+    // Get booking details before cancelling
+    const booking = await getBookingById(bookingId);
+
     const result = await cancelBooking(bookingId, userId as string);
 
     if (!result.success) {
       return res.status(400).json(result);
+    }
+
+    // Create notification for booking cancellation
+    if (booking) {
+      try {
+        const facilityQuery = await pool.query('SELECT name FROM facilities WHERE id = $1', [booking.facilityId]);
+        const courtQuery = await pool.query('SELECT name FROM courts WHERE id = $1', [booking.courtId]);
+
+        const facilityName = facilityQuery.rows[0]?.name || 'Your facility';
+        const courtName = courtQuery.rows[0]?.name || 'Court';
+
+        const startDateTime = new Date(`${booking.bookingDate}T${booking.startTime}`);
+
+        await notificationService.notifyBookingCancelled(
+          userId as string,
+          facilityName,
+          courtName,
+          startDateTime,
+          'Cancelled by user'
+        );
+      } catch (notificationError) {
+        console.error('Error creating cancellation notification:', notificationError);
+        // Don't fail the cancellation if notification fails
+      }
     }
 
     res.json(result);

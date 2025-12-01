@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Search, MessageCircle, Users, X } from 'lucide-react';
+import { Send, Search, MessageCircle, Users, X, Plus, UserPlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { messagesApi, membersApi } from '../api/client';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -7,6 +7,7 @@ import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { toast } from 'sonner';
 
 interface MessagesProps {
@@ -55,6 +56,12 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
     name: string;
     email: string;
   } | null>(null);
+
+  // New Chat Dialog
+  const [showNewChatDialog, setShowNewChatDialog] = useState(false);
+  const [facilityMembers, setFacilityMembers] = useState<any[]>([]);
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
   useEffect(() => {
     if (facilityId && user?.id) {
@@ -116,6 +123,70 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
     }
   };
 
+  const loadFacilityMembers = async () => {
+    if (!facilityId) return;
+
+    try {
+      setLoadingMembers(true);
+      const response = await membersApi.getFacilityMembers(facilityId, memberSearchQuery);
+
+      if (response.success && response.data?.members) {
+        // Filter out the current user from the list
+        const filteredMembers = response.data.members.filter(
+          (member: any) => member.userId !== user?.id
+        );
+        setFacilityMembers(filteredMembers);
+      }
+    } catch (error) {
+      console.error('Error loading facility members:', error);
+      toast.error('Failed to load facility members');
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  const handleNewChatClick = () => {
+    setShowNewChatDialog(true);
+    setMemberSearchQuery('');
+    loadFacilityMembers();
+  };
+
+  const handleSelectMember = (member: any) => {
+    // Check if conversation already exists
+    const existingConv = conversations.find(
+      conv => conv.otherUser.id === member.userId
+    );
+
+    if (existingConv) {
+      // Select existing conversation
+      setSelectedConversation(existingConv.id);
+      setNewConversationUser(null);
+      toast.info(`Opened existing conversation with ${member.fullName}`);
+    } else {
+      // Start new conversation
+      setNewConversationUser({
+        id: member.userId,
+        name: member.fullName,
+        email: member.email
+      });
+      setSelectedConversation(null);
+      setMessages([]);
+      toast.success(`Starting new conversation with ${member.fullName}`);
+    }
+
+    setShowNewChatDialog(false);
+  };
+
+  // Load members when search query changes (with debounce)
+  useEffect(() => {
+    if (showNewChatDialog) {
+      const timer = setTimeout(() => {
+        loadFacilityMembers();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [memberSearchQuery, showNewChatDialog]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -170,48 +241,30 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
   const sendMessage = async () => {
     if (!newMessage.trim() || !user?.id) return;
 
-    // Handle new conversation
-    if (newConversationUser && !selectedConversation) {
-      try {
-        setSending(true);
-        const response = await messagesApi.sendMessage(
-          user.id,
-          newConversationUser.id,
-          facilityId,
-          newMessage
-        );
+    // Determine recipient ID
+    let recipientId: string | null = null;
 
-        if (response.success && response.data?.data?.message) {
-          setMessages(prev => [...prev, response.data.data.message]);
-        } else if (response.success && response.data?.message) {
-          setMessages(prev => [...prev, response.data.message]);
-        }
-
-        setNewMessage('');
-        // Reload conversations to get the newly created conversation
-        await loadConversations();
-        setNewConversationUser(null);
-        toast.success('Message sent!');
-      } catch (error) {
-        console.error('Error sending message:', error);
-        toast.error('Failed to send message');
-      } finally {
-        setSending(false);
+    if (newConversationUser) {
+      recipientId = newConversationUser.id;
+    } else if (selectedConversation) {
+      const selectedConv = conversations.find(c => c.id === selectedConversation);
+      if (selectedConv) {
+        recipientId = selectedConv.otherUser.id;
       }
-      return;
     }
 
-    // Handle existing conversation
-    if (!selectedConversation) return;
-
-    const selectedConv = conversations.find(c => c.id === selectedConversation);
-    if (!selectedConv) return;
+    // Ensure we have a recipient
+    if (!recipientId) {
+      console.error('No recipient selected');
+      toast.error('Please select a recipient');
+      return;
+    }
 
     try {
       setSending(true);
       const response = await messagesApi.sendMessage(
         user.id,
-        selectedConv.otherUser.id,
+        recipientId,
         facilityId,
         newMessage
       );
@@ -223,8 +276,16 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
       }
 
       setNewMessage('');
-      // Reload conversations to update last message
-      loadConversations();
+
+      // Reload conversations to get/update the conversation
+      await loadConversations();
+
+      // Clear new conversation user after first message
+      if (newConversationUser) {
+        setNewConversationUser(null);
+      }
+
+      toast.success('Message sent!');
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Failed to send message');
@@ -286,7 +347,17 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
       {/* Conversations List */}
       <div className="w-80 border-r flex flex-col">
         <div className="p-4 border-b">
-          <h2 className="text-lg font-semibold mb-3">Messages</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">Messages</h2>
+            <Button
+              size="sm"
+              onClick={handleNewChatClick}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              New Chat
+            </Button>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
@@ -457,6 +528,73 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
           </div>
         )}
       </div>
+
+      {/* New Chat Dialog */}
+      <Dialog open={showNewChatDialog} onOpenChange={setShowNewChatDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-blue-600" />
+              Start New Conversation
+            </DialogTitle>
+            <DialogDescription>
+              Select a facility member or admin to start chatting
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search members..."
+                value={memberSearchQuery}
+                onChange={(e) => setMemberSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            {/* Members List */}
+            <div className="max-h-96 overflow-y-auto space-y-1">
+              {loadingMembers ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : facilityMembers.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm">
+                    {memberSearchQuery ? 'No members found' : 'No members available'}
+                  </p>
+                </div>
+              ) : (
+                facilityMembers.map((member) => (
+                  <div
+                    key={member.userId}
+                    onClick={() => handleSelectMember(member)}
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-gray-200"
+                  >
+                    <Avatar>
+                      <AvatarFallback className="bg-blue-100 text-blue-700">
+                        {getInitials(member.fullName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{member.fullName}</p>
+                      <p className="text-xs text-gray-500 truncate">{member.email}</p>
+                      {member.isFacilityAdmin && (
+                        <Badge variant="secondary" className="text-xs mt-1">
+                          Admin
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

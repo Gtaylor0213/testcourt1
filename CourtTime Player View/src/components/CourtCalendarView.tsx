@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { UnifiedSidebar } from './UnifiedSidebar';
 import { BookingWizard } from './BookingWizard';
 import { QuickReservePopup } from './QuickReservePopup';
@@ -61,12 +62,13 @@ export function CourtCalendarView({
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedFacility, setSelectedFacility] = useState(selectedFacilityId);
   const [selectedView, setSelectedView] = useState('week');
-  const [selectedCourtType, setSelectedCourtType] = useState<'tennis' | 'pickleball'>('tennis');
+  const [selectedCourtType, setSelectedCourtType] = useState<'tennis' | 'pickleball' | null>('tennis');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [memberFacilities, setMemberFacilities] = useState<any[]>([]);
   const [loadingFacilities, setLoadingFacilities] = useState(true);
   const [bookingsData, setBookingsData] = useState<any>({});
   const [loadingBookings, setLoadingBookings] = useState(false);
+  const calendarScrollRef = useRef<HTMLDivElement>(null);
   const [bookingWizard, setBookingWizard] = useState({
     isOpen: false,
     court: '',
@@ -95,22 +97,29 @@ export function CourtCalendarView({
     reservation: null as any
   });
 
-  // Update current time every minute
+  // Update current time every second for smooth line movement
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
-    }, 60000);
+    }, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Show quick reserve popup when calendar view loads
+  // Show quick reserve popup only on first login (once per session)
   useEffect(() => {
-    // Show popup after a short delay to allow calendar to render
-    const timer = setTimeout(() => {
-      setShowQuickReserve(true);
-    }, 500);
+    // Check if popup has already been shown this session
+    const hasShownPopup = sessionStorage.getItem('quick_reserve_shown');
 
-    return () => clearTimeout(timer);
+    if (!hasShownPopup) {
+      // Show popup after a short delay to allow calendar to render
+      const timer = setTimeout(() => {
+        setShowQuickReserve(true);
+        // Mark as shown for this session
+        sessionStorage.setItem('quick_reserve_shown', 'true');
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
   }, []); // Empty dependency array means this runs once when component mounts
 
   // Fetch user's member facilities with courts
@@ -364,6 +373,11 @@ export function CourtCalendarView({
   // Filter courts based on selected court type
   const allCourts = currentFacility?.courts || [];
   const courts = React.useMemo(() => {
+    // If no court type is selected, show all courts
+    if (selectedCourtType === null) {
+      return allCourts;
+    }
+    // Otherwise filter by selected type
     return allCourts.filter(court => court.type === selectedCourtType);
   }, [allCourts, selectedCourtType]);
 
@@ -404,16 +418,15 @@ export function CourtCalendarView({
     return slots;
   }, []);
 
-  // Filter time slots to only show current time and after for today
+  // Filter time slots to only show current and future times for today
   const timeSlots = React.useMemo(() => {
     if (!isToday(selectedDate)) {
-      // For future dates, show all time slots
-      return allTimeSlots;
+      return allTimeSlots; // Show all slots for non-today dates
     }
-    
-    // For today, filter out past time slots
+
+    // For today, filter out times before current time
     return allTimeSlots.filter(timeSlot => !isPastTime(timeSlot));
-  }, [selectedDate, currentTime, isToday, isPastTime]);
+  }, [allTimeSlots, selectedDate, currentTime, isToday, isPastTime]);
 
   // Use fetched bookings from API
   const bookings = bookingsData;
@@ -445,8 +458,6 @@ export function CourtCalendarView({
   };
 
   const handleEmptySlotClick = (courtName: string, time: string) => {
-    if (isPastTime(time)) return; // Don't allow booking past times
-
     // Find the court object to get its ID
     const courtObj = courts.find(c => c.name === courtName);
     if (!courtObj) {
@@ -505,11 +516,9 @@ export function CourtCalendarView({
 
   // Drag handlers
   const handleMouseDown = (courtName: string, time: string, event: React.MouseEvent) => {
-    if (isPastTime(time)) return;
-    
     const booking = bookings[courtName as keyof typeof bookings]?.[time];
     if (booking) return; // Don't start drag on booked slots
-    
+
     event.preventDefault();
     setDragState({
       isDragging: true,
@@ -520,30 +529,30 @@ export function CourtCalendarView({
   };
 
   const handleMouseEnter = (courtName: string, time: string) => {
-    if (!dragState.isDragging || isPastTime(time)) return;
-    
+    if (!dragState.isDragging) return;
+
     const booking = bookings[courtName as keyof typeof bookings]?.[time];
     if (booking) return; // Don't include booked slots in selection
-    
+
     // Only allow dragging within the same court
     if (dragState.startCell && dragState.startCell.court !== courtName) return;
-    
+
     const startTimeIndex = timeSlots.indexOf(dragState.startCell!.time);
     const currentTimeIndex = timeSlots.indexOf(time);
     const endTimeIndex = Math.max(startTimeIndex, currentTimeIndex);
     const beginTimeIndex = Math.min(startTimeIndex, currentTimeIndex);
-    
+
     // Create selection from start to current position
     const newSelectedCells = new Set<string>();
     for (let i = beginTimeIndex; i <= endTimeIndex; i++) {
       const timeSlot = timeSlots[i];
       const booking = bookings[courtName as keyof typeof bookings]?.[timeSlot];
-      // Only include available slots and non-past times
-      if (!booking && !isPastTime(timeSlot)) {
+      // Only include available slots
+      if (!booking) {
         newSelectedCells.add(`${courtName}|${timeSlot}`);
       }
     }
-    
+
     setDragState(prev => ({
       ...prev,
       endCell: { court: courtName, time },
@@ -576,7 +585,7 @@ export function CourtCalendarView({
   }, [dragState.isDragging]);
 
   // Quick reserve handlers
-  const handleQuickReserve = (reservation: {
+  const handleQuickReserve = async (reservation: {
     facility: string;
     court: string;
     date: string;
@@ -585,8 +594,8 @@ export function CourtCalendarView({
     playerName: string;
   }) => {
     console.log('Quick reservation made:', reservation);
-    // In a real app, this would send the reservation to the backend
-    alert(`Quick reservation confirmed!\n${reservation.court} at ${reservation.facility}\n${reservation.date} ${reservation.time}`);
+    // Refresh the bookings to show the new reservation
+    await fetchBookings();
   };
 
   const closeQuickReserve = () => {
@@ -640,22 +649,13 @@ export function CourtCalendarView({
 
 
 
-  // Helper function to get current time position for the red line
-  const getCurrentTimePosition = () => {
-    if (!isToday(selectedDate)) return null;
-    
-    const hours = currentTime.getHours();
-    const minutes = currentTime.getMinutes();
-    
-    // Convert to time slot index (6 AM = index 0)
-    const startHour = 6;
-    const timeIndex = hours - startHour + (minutes / 60);
-    
-    // Each slot is about 60px high, calculate position
-    return timeIndex * 60 + 40; // 40px for header offset
-  };
-
-  const currentTimePosition = getCurrentTimePosition();
+  // Auto-scroll to top when viewing today (since we're filtering out past times)
+  useEffect(() => {
+    if (isToday(selectedDate) && calendarScrollRef.current) {
+      // Scroll to top to show the first available time slot
+      calendarScrollRef.current.scrollTop = 0;
+    }
+  }, [selectedDate, isToday]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -744,7 +744,7 @@ export function CourtCalendarView({
                 <Button
                   variant={selectedCourtType === 'tennis' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setSelectedCourtType('tennis')}
+                  onClick={() => setSelectedCourtType(selectedCourtType === 'tennis' ? null : 'tennis')}
                   className={selectedCourtType === 'tennis' ? 'bg-blue-600 hover:bg-blue-700' : ''}
                 >
                   Tennis
@@ -752,8 +752,8 @@ export function CourtCalendarView({
                 <Button
                   variant={selectedCourtType === 'pickleball' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setSelectedCourtType('pickleball')}
-                  className={selectedCourtType === 'pickleball' ? 'bg-green-600 hover:bg-green-700' : ''}
+                  onClick={() => setSelectedCourtType(selectedCourtType === 'pickleball' ? null : 'pickleball')}
+                  className={selectedCourtType === 'pickleball' ? 'bg-blue-600 hover:bg-blue-700' : ''}
                 >
                   Pickleball
                 </Button>
@@ -779,6 +779,20 @@ export function CourtCalendarView({
                     ))}
                   </SelectContent>
                 </Select>
+
+                {/* Info Popover */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full">
+                      <Info className="h-4 w-4 text-gray-500" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80">
+                    <p className="text-sm text-gray-700">
+                      Click on any empty time slot to book a court reservation. Hold and drag to select multiple consecutive slots.
+                    </p>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 
@@ -797,16 +811,8 @@ export function CourtCalendarView({
           </div>
         </div>
 
-        {/* Instructions */}
-        <div className="flex items-center gap-2 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-          <Info className="h-4 w-4 text-blue-600" />
-          <span className="text-sm text-blue-800">
-            Click on any empty time slot to book a court reservation. Hold and drag to select multiple consecutive slots.
-          </span>
-        </div>
-
         {/* Calendar Grid */}
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="p-0">
             {courts.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
@@ -821,28 +827,33 @@ export function CourtCalendarView({
                 </Button>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <div className="min-w-max relative">
-                {/* Header Row - Court Names */}
-                <div className="grid grid-cols-[120px_repeat(var(--court-count),_200px)] border-b border-gray-200 bg-gray-50" style={{'--court-count': courts.length} as React.CSSProperties}>
-                  <div className="p-4 border-r border-gray-200">
+              <div className="relative border border-gray-200" style={{ height: '600px', maxHeight: '70vh' }}>
+                {/* Header Row - Court Names (Fixed at top) */}
+                <div className="absolute top-0 left-0 right-0 grid grid-cols-[120px_repeat(var(--court-count),_200px)] border-b-2 border-gray-300 shadow-md pointer-events-none" style={{...({'--court-count': courts.length} as React.CSSProperties), backgroundColor: '#ffffff', zIndex: 50}}>
+                  <div className="p-4 border-r border-gray-200 pointer-events-auto">
                     <span className="font-medium text-sm text-gray-600">Time</span>
                   </div>
                   {courts.map((court, index) => (
-                    <div key={index} className="p-4 border-r border-gray-200 last:border-r-0">
+                    <div key={index} className="p-4 border-r border-gray-200 last:border-r-0 pointer-events-auto">
                       <div className="font-medium text-sm">{court.name}</div>
                       <div className="text-xs text-gray-600 mt-1 capitalize">{court.type}</div>
                     </div>
                   ))}
                 </div>
 
+                {/* Scrollable Content Area */}
+                <div
+                  ref={calendarScrollRef}
+                  className="overflow-x-auto overflow-y-scroll h-full"
+                  style={{ paddingTop: '73px' }}
+                >
+                  <div className="min-w-max">
                 {/* Time Slots */}
                 {timeSlots.map((time, timeIndex) => {
-                  const isPast = isPastTime(time);
                   const isHourMark = time.endsWith(':00 AM') || time.endsWith(':00 PM');
                   return (
                     <div key={timeIndex} className={`grid grid-cols-[120px_repeat(var(--court-count),_200px)] border-b last:border-b-0 ${isHourMark ? 'border-gray-300' : 'border-gray-100'}`} style={{'--court-count': courts.length} as React.CSSProperties}>
-                      <div className={`p-2 border-r border-gray-200 bg-gray-50 ${isPast ? 'opacity-50' : ''}`}>
+                      <div className="p-2 border-r border-gray-200 bg-gray-50">
                         <span className={`text-xs ${isHourMark ? 'font-semibold' : 'font-normal'}`}>{time}</span>
                       </div>
                       {courts.map((court, courtIndex) => {
@@ -852,20 +863,19 @@ export function CourtCalendarView({
                             key={courtIndex}
                             className={`
                               p-1 border-r border-gray-200 last:border-r-0 min-h-[40px] relative
-                              ${isPast ? 'bg-gray-100 opacity-50' : ''}
-                              ${!booking && !isPast ? 'cursor-pointer hover:bg-gray-50' : ''}
+                              ${!booking ? 'cursor-pointer hover:bg-gray-50' : ''}
                               ${booking ? 'cursor-pointer' : ''}
                               ${dragState.selectedCells.has(`${court.name}|${time}`) ? 'bg-blue-100 border-blue-300' : ''}
-                              ${dragState.isDragging && !booking && !isPast ? 'select-none' : ''}
+                              ${dragState.isDragging && !booking ? 'select-none' : ''}
                             `}
                             onClick={() => {
                               if (booking) {
                                 handleBookingClick(court.name, time);
-                              } else if (!isPast) {
+                              } else {
                                 handleEmptySlotClick(court.name, time);
                               }
                             }}
-                            onMouseDown={(e) => !booking && !isPast && handleMouseDown(court.name, time, e)}
+                            onMouseDown={(e) => !booking && handleMouseDown(court.name, time, e)}
                             onMouseEnter={() => handleMouseEnter(court.name, time)}
                           >
                             {booking && booking.type === 'reservation' && booking.isFirstSlot && (
@@ -883,11 +893,6 @@ export function CourtCalendarView({
                                 <div className="text-[9px] opacity-75">{booking.duration}</div>
                               </div>
                             )}
-                            {isPast && !booking && (
-                              <div className="text-xs text-gray-400 p-2">
-                                Not available
-                              </div>
-                            )}
                           </div>
                         );
                       })}
@@ -895,6 +900,7 @@ export function CourtCalendarView({
                   );
                 })}
               </div>
+            </div>
             </div>
             )}
           </CardContent>
@@ -913,10 +919,6 @@ export function CourtCalendarView({
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-white border border-gray-300 rounded"></div>
             <span>Available</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded"></div>
-            <span>Past/Unavailable</span>
           </div>
         </div>
         </>

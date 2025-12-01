@@ -69,8 +69,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const initializeAuth = async () => {
     try {
-      // Initialize auth state - Supabase removed
-      // TODO: Implement your authentication initialization logic here
+      // Check for saved session in localStorage
+      const savedUser = localStorage.getItem('auth_user');
+      const savedToken = localStorage.getItem('auth_token');
+
+      if (savedUser && savedToken) {
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          setUser(parsedUser);
+          setAccessToken(savedToken);
+          console.log('Session restored from localStorage');
+        } catch (parseError) {
+          console.error('Failed to parse saved user:', parseError);
+          // Clear invalid data
+          localStorage.removeItem('auth_user');
+          localStorage.removeItem('auth_token');
+        }
+      }
+
       setLoading(false);
     } catch (error) {
       console.error('Failed to initialize auth:', error);
@@ -97,6 +113,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setUser(mockUser);
         setAccessToken('dev-token-123');
+        // Save to localStorage
+        localStorage.setItem('auth_user', JSON.stringify(mockUser));
+        localStorage.setItem('auth_token', 'dev-token-123');
         toast.success('Logged in (Dev Mode)');
         return true;
       }
@@ -110,8 +129,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // The API client wraps backend response: { success: true, data: { success: true, user: {...} } }
         const backendResponse = result.data as any;
         if (backendResponse.user) {
+          const token = 'token-' + backendResponse.user.id;
           setUser(backendResponse.user);
-          setAccessToken('token-' + backendResponse.user.id);
+          setAccessToken(token);
+          // Save to localStorage
+          localStorage.setItem('auth_user', JSON.stringify(backendResponse.user));
+          localStorage.setItem('auth_token', token);
           toast.success('Logged in successfully');
           return true;
         }
@@ -151,8 +174,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             timezone: 'America/New_York'
           }
         };
+        const token = 'dev-token-' + Date.now();
         setUser(mockUser);
-        setAccessToken('dev-token-' + Date.now());
+        setAccessToken(token);
+        // Save to localStorage
+        localStorage.setItem('auth_user', JSON.stringify(mockUser));
+        localStorage.setItem('auth_token', token);
         toast.success('Registered successfully (Dev Mode)');
         return true;
       }
@@ -174,8 +201,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (result.success && result.data) {
+        const token = 'token-' + result.data.user.id;
         setUser(result.data.user);
-        setAccessToken('token-' + result.data.user.id);
+        setAccessToken(token);
+        // Save to localStorage
+        localStorage.setItem('auth_user', JSON.stringify(result.data.user));
+        localStorage.setItem('auth_token', token);
         toast.success('Registration successful!');
         return true;
       } else {
@@ -193,7 +224,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async (): Promise<void> => {
     try {
-      // TODO: Implement your logout logic here
+      // Clear localStorage
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_token');
+
+      // Clear sessionStorage (including quick reserve popup flag)
+      sessionStorage.removeItem('quick_reserve_shown');
+
       setUser(null);
       setAccessToken(null);
       toast.success('Logged out successfully');
@@ -205,11 +242,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = async (updates: Partial<User>): Promise<boolean> => {
     if (!accessToken) return false;
-    
+
     try {
       // TODO: Implement your profile update logic here
       if (user) {
-        setUser({ ...user, ...updates });
+        const updatedUser = { ...user, ...updates };
+        setUser(updatedUser);
+        // Update localStorage
+        localStorage.setItem('auth_user', JSON.stringify(updatedUser));
         toast.success('Profile updated successfully');
         return true;
       }

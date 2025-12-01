@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -24,11 +24,30 @@ interface BookingWizardProps {
 }
 
 export function BookingWizard({ isOpen, onClose, court, courtId, date, time, facility, facilityId, selectedSlots, onBookingCreated }: BookingWizardProps) {
-  const [duration, setDuration] = useState('1');
+  const [duration, setDuration] = useState(() => {
+    if (selectedSlots && selectedSlots.length > 1) {
+      // Each slot is 15 minutes (0.25 hours)
+      return (selectedSlots.length * 0.25).toString();
+    }
+    return '1'; // Default to 1 hour for single slots
+  });
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { showToast } = useNotifications();
   const { user } = useAuth();
+
+  // Update duration when selectedSlots changes OR when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      if (selectedSlots && selectedSlots.length > 1) {
+        // Calculate duration based on selected slots
+        setDuration((selectedSlots.length * 0.25).toString());
+      } else {
+        // Reset to default for single slot bookings
+        setDuration('1');
+      }
+    }
+  }, [selectedSlots, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

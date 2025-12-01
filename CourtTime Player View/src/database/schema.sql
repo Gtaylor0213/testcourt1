@@ -249,6 +249,7 @@ CREATE TABLE conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     participant1_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     participant2_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    facility_id VARCHAR(50) REFERENCES facilities(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_conversation UNIQUE (participant1_id, participant2_id)
@@ -265,6 +266,7 @@ CREATE TABLE messages (
 
 CREATE INDEX idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX idx_messages_sender ON messages(sender_id);
+CREATE INDEX idx_conversations_facility ON conversations(facility_id);
 
 -- =====================================================
 -- ANALYTICS & USAGE TRACKING
@@ -317,6 +319,7 @@ CREATE TRIGGER update_hitting_partner_posts_updated_at BEFORE UPDATE ON hitting_
 CREATE TRIGGER update_bulletin_posts_updated_at BEFORE UPDATE ON bulletin_posts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_events_updated_at BEFORE UPDATE ON events FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_player_profiles_updated_at BEFORE UPDATE ON player_profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_conversations_updated_at BEFORE UPDATE ON conversations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Function to auto-expire hitting partner posts
 CREATE OR REPLACE FUNCTION expire_old_hitting_partner_posts()

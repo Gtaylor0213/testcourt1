@@ -1,4 +1,4 @@
-import { pool } from '../database/connection';
+import { getPool } from '../database/connection';
 import { Notification } from '../contexts/NotificationContext';
 
 export interface DBNotification {
@@ -19,23 +19,23 @@ export const notificationService = {
   async getNotifications(userId: string): Promise<Notification[]> {
     const query = `
       SELECT
-        n.*,
-        b.id as booking_id,
-        b.start_time,
-        b.end_time,
-        c.name as court_name,
-        c.court_type,
-        f.name as facility_name
-      FROM notifications n
-      LEFT JOIN bookings b ON n.action_url LIKE '%booking%' || b.id || '%'
-      LEFT JOIN courts c ON b.court_id = c.id
-      LEFT JOIN facilities f ON b.facility_id = f.id
-      WHERE n.user_id = $1
-      ORDER BY n.created_at DESC
+        id,
+        user_id,
+        title,
+        message,
+        type,
+        is_read,
+        action_url,
+        priority,
+        created_at
+      FROM notifications
+      WHERE user_id = $1
+      ORDER BY created_at DESC
       LIMIT 50
     `;
 
     try {
+      const pool = getPool();
       const result = await pool.query(query, [userId]);
 
       return result.rows.map((row: any) => ({
@@ -46,13 +46,7 @@ export const notificationService = {
         timestamp: new Date(row.created_at),
         read: row.is_read,
         actionUrl: row.action_url,
-        priority: row.priority || this.inferPriority(row.type),
-        relatedReservation: row.booking_id ? {
-          facility: row.facility_name,
-          court: row.court_name,
-          date: this.formatDate(row.start_time),
-          time: this.formatTimeRange(row.start_time, row.end_time)
-        } : undefined
+        priority: row.priority || this.inferPriority(row.type)
       }));
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -69,6 +63,7 @@ export const notificationService = {
     `;
 
     try {
+      const pool = getPool();
       const result = await pool.query(query, [userId]);
       return parseInt(result.rows[0].count);
     } catch (error) {
@@ -86,6 +81,7 @@ export const notificationService = {
     `;
 
     try {
+      const pool = getPool();
       await pool.query(query, [notificationId]);
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -102,6 +98,7 @@ export const notificationService = {
     `;
 
     try {
+      const pool = getPool();
       await pool.query(query, [userId]);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
@@ -127,6 +124,7 @@ export const notificationService = {
     `;
 
     try {
+      const pool = getPool();
       const result = await pool.query(query, [
         userId,
         title,
@@ -149,6 +147,7 @@ export const notificationService = {
     `;
 
     try {
+      const pool = getPool();
       await pool.query(query, [notificationId]);
     } catch (error) {
       console.error('Error deleting notification:', error);

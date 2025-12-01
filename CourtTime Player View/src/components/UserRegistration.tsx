@@ -640,110 +640,115 @@ export function UserRegistration({ onBack, onRegistrationComplete }: UserRegistr
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header with Logo Only */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center gap-8">
-              <Button variant="ghost" onClick={onBack} className="flex items-center gap-2 hover:bg-gray-100">
-                <ArrowLeft className="h-4 w-4" />
-                Back to Login
-              </Button>
-              <div className="h-6 w-px bg-gray-300"></div>
-              <div className="flex items-center gap-4">
-                <img src={logoImage} alt="CourtTime" className="h-10 w-auto" />
-                <h1 className="text-2xl font-semibold text-gray-900">Create Player Account</h1>
-              </div>
+          <div className="flex items-center h-20">
+            <Button variant="ghost" onClick={onBack} className="flex items-center gap-2 hover:bg-gray-100">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Login
+            </Button>
+            <div className="flex-1 flex justify-center">
+              <img src={logoImage} alt="CourtTime" className="h-16 w-auto" />
             </div>
           </div>
         </div>
       </header>
 
       {/* Registration Content */}
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Progress Steps */}
-        <div className="mb-12">
-          <div className="relative">
-            <div className="flex items-center justify-between">
-              {[1, 2].map((step) => (
-                <div key={step} className="flex flex-col items-center relative z-10">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Card>
+          <div className="flex">
+            {/* Vertical Progress Steps - Inside Card Left Side */}
+            <div className="w-48 border-r bg-gray-50 p-4">
+              <div className="flex flex-col items-center gap-5 pt-3">
+                {/* Step 1 */}
+                <div className="flex flex-col items-center text-center">
                   <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-medium border-2 transition-all duration-200 ${
-                      step <= currentStep
+                    className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-medium border-2 transition-all duration-200 mb-2 ${
+                      1 <= currentStep
                         ? 'bg-blue-600 text-white border-blue-600'
                         : 'bg-white text-gray-400 border-gray-300'
                     }`}
                   >
-                    {step}
+                    1
+                  </div>
+                  <p className={`text-sm font-medium ${currentStep >= 1 ? 'text-blue-600' : 'text-gray-500'}`}>
+                    Personal Information
+                  </p>
+                </div>
+
+                {/* Vertical Progress Line */}
+                <div className="flex justify-center">
+                  <div className="w-0.5 h-12 bg-gray-200">
+                    <div
+                      className="w-full bg-blue-600 transition-all duration-300"
+                      style={{ height: `${currentStep >= 2 ? '100' : '0'}%` }}
+                    />
                   </div>
                 </div>
-              ))}
-            </div>
 
-            {/* Progress Line */}
-            <div className="absolute top-6 left-0 right-0 h-0.5 bg-gray-200 -z-10">
-              <div
-                className="h-full bg-blue-600 transition-all duration-300"
-                style={{ width: `${((currentStep - 1) / 1) * 100}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-between mt-4">
-            <div className="text-center flex-1">
-              <p className={`text-sm font-medium ${currentStep >= 1 ? 'text-blue-600' : 'text-gray-500'}`}>
-                Personal Information
-              </p>
-            </div>
-            <div className="text-center flex-1">
-              <p className={`text-sm font-medium ${currentStep >= 2 ? 'text-blue-600' : 'text-gray-500'}`}>
-                Facilities & Notifications
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Registration Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              {currentStep === 1 ? 'Personal Information' : 'Facilities & Notifications'}
-            </CardTitle>
-            <CardDescription>
-              {currentStep === 1 && 'Enter your personal information and address to create your account'}
-              {currentStep === 2 && 'Optional facility membership requests and notification preferences'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {renderStepContent()}
-
-            {/* Navigation Buttons */}
-            <div className="flex justify-between mt-8">
-              <div>
-                {currentStep > 1 && (
-                  <Button variant="outline" onClick={handleBack}>
-                    Previous
-                  </Button>
-                )}
-              </div>
-              <div>
-                {currentStep < 2 ? (
-                  <Button onClick={handleNext} className="bg-blue-600 hover:bg-blue-700">
-                    Next Step
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={handleSubmit}
-                    className="bg-blue-600 hover:bg-blue-700"
-                    disabled={isSubmitting}
+                {/* Step 2 */}
+                <div className="flex flex-col items-center text-center">
+                  <div
+                    className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-medium border-2 transition-all duration-200 mb-2 ${
+                      2 <= currentStep
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-400 border-gray-300'
+                    }`}
                   >
-                    {isSubmitting ? 'Creating Account...' : 'Create Account'}
-                  </Button>
-                )}
+                    2
+                  </div>
+                  <p className={`text-sm font-medium ${currentStep >= 2 ? 'text-blue-600' : 'text-gray-500'}`}>
+                    Facilities & Notifications
+                  </p>
+                </div>
               </div>
             </div>
-          </CardContent>
+
+            {/* Registration Form - Right Side */}
+            <div className="flex-1">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  {currentStep === 1 ? 'Personal Information' : 'Facilities & Notifications'}
+                </CardTitle>
+                <CardDescription>
+                  {currentStep === 1 && 'Enter your personal information and address to create your account'}
+                  {currentStep === 2 && 'Optional facility membership requests and notification preferences'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {renderStepContent()}
+
+                {/* Navigation Buttons */}
+                <div className="flex justify-between mt-8">
+                  <div>
+                    {currentStep > 1 && (
+                      <Button variant="outline" onClick={handleBack}>
+                        Previous
+                      </Button>
+                    )}
+                  </div>
+                  <div>
+                    {currentStep < 2 ? (
+                      <Button onClick={handleNext} className="bg-blue-600 hover:bg-blue-700">
+                        Next Step
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleSubmit}
+                        className="bg-blue-600 hover:bg-blue-700"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? 'Creating Account...' : 'Create Account'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </div>
+          </div>
         </Card>
       </div>
     </div>

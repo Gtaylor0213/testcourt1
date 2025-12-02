@@ -135,11 +135,16 @@ router.patch('/facilities/:facilityId', async (req, res) => {
       name,
       type,
       address,
+      streetAddress,
+      city,
+      state,
+      zipCode,
       phone,
       email,
       description,
       amenities,
-      operatingHours
+      operatingHours,
+      logoUrl
     } = req.body;
 
     const result = await query(`
@@ -153,21 +158,31 @@ router.patch('/facilities/:facilityId', async (req, res) => {
         description = COALESCE($6, description),
         amenities = COALESCE($7, amenities),
         operating_hours = COALESCE($8, operating_hours),
+        street_address = COALESCE($9, street_address),
+        city = COALESCE($10, city),
+        state = COALESCE($11, state),
+        zip_code = COALESCE($12, zip_code),
+        logo_url = COALESCE($13, logo_url),
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $9
+      WHERE id = $14
       RETURNING
         id,
         name,
         type,
         address,
+        street_address as "streetAddress",
+        city,
+        state,
+        zip_code as "zipCode",
         phone,
         email,
         description,
         amenities,
         operating_hours as "operatingHours",
+        logo_url as "logoUrl",
         created_at as "createdAt",
         updated_at as "updatedAt"
-    `, [name, type, address, phone, email, description, amenities, operatingHours, facilityId]);
+    `, [name, type, address, phone, email, description, amenities, operatingHours, streetAddress, city, state, zipCode, logoUrl, facilityId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -400,6 +415,7 @@ router.get('/analytics/:facilityId', async (req, res) => {
   try {
     const { facilityId } = req.params;
     const { period = '30' } = req.query; // Days to analyze
+    const periodInt = parseInt(period as string);
 
     // Bookings over time
     const bookingsTrendResult = await query(`
@@ -408,7 +424,7 @@ router.get('/analytics/:facilityId', async (req, res) => {
         COUNT(*) as bookings
       FROM bookings
       WHERE facility_id = $1
-        AND booking_date >= CURRENT_DATE - INTERVAL '${parseInt(period as string)} days'
+        AND booking_date >= CURRENT_DATE - INTERVAL '${periodInt} days'
         AND status != 'cancelled'
       GROUP BY DATE(booking_date)
       ORDER BY date
@@ -421,7 +437,7 @@ router.get('/analytics/:facilityId', async (req, res) => {
         COUNT(*) as bookings
       FROM bookings
       WHERE facility_id = $1
-        AND booking_date >= CURRENT_DATE - INTERVAL '${parseInt(period as string)} days'
+        AND booking_date >= CURRENT_DATE - INTERVAL '${periodInt} days'
         AND status != 'cancelled'
       GROUP BY EXTRACT(HOUR FROM start_time)
       ORDER BY bookings DESC
@@ -435,7 +451,7 @@ router.get('/analytics/:facilityId', async (req, res) => {
         COUNT(b.id) as bookings
       FROM courts c
       LEFT JOIN bookings b ON c.id = b.court_id
-        AND b.booking_date >= CURRENT_DATE - INTERVAL '${parseInt(period as string)} days'
+        AND b.booking_date >= CURRENT_DATE - INTERVAL '${periodInt} days'
         AND b.status != 'cancelled'
       WHERE c.facility_id = $1
       GROUP BY c.id, c.name, c.court_number
@@ -449,9 +465,81 @@ router.get('/analytics/:facilityId', async (req, res) => {
         COUNT(*) as new_members
       FROM facility_memberships
       WHERE facility_id = $1
-        AND start_date >= CURRENT_DATE - INTERVAL '${parseInt(period as string)} days'
+        AND start_date >= CURRENT_DATE - INTERVAL '${periodInt} days'
       GROUP BY DATE(start_date)
       ORDER BY date
+    `, [facilityId]);
+
+    // Day of week analysis
+    const dayOfWeekResult = await query(`
+      SELECT
+        EXTRACT(DOW FROM booking_date) as day_of_week,
+        COUNT(*) as bookings
+      FROM bookings
+      WHERE facility_id = $1
+        AND booking_date >= CURRENT_DATE - INTERVAL '${periodInt} days'
+        AND status != 'cancelled'
+      GROUP BY EXTRACT(DOW FROM booking_date)
+      ORDER BY day_of_week
+    `, [facilityId]);
+
+    // Hourly heatmap by day of week
+    const heatmapResult = await query(`
+      SELECT
+        EXTRACT(DOW FROM booking_date) as day_of_week,
+        EXTRACT(HOUR FROM start_time) as hour,
+        COUNT(*) as bookings
+      FROM bookings
+      WHERE facility_id = $1
+        AND booking_date >= CURRENT_DATE - INTERVAL '${periodInt} days'
+        AND status != 'cancelled'
+      GROUP BY EXTRACT(DOW FROM booking_date), EXTRACT(HOUR FROM start_time)
+      ORDER BY day_of_week, hour
+    `, [facilityId]);
+
+    // Booking status breakdown
+    const statusBreakdownResult = await query(`
+      SELECT
+        status,
+        COUNT(*) as count
+      FROM bookings
+      WHERE facility_id = $1
+        AND booking_date >= CURRENT_DATE - INTERVAL '${periodInt} days'
+      GROUP BY status
+      ORDER BY count DESC
+    `, [facilityId]);
+
+    // Court utilization details (hours booked vs available)
+    const courtUtilizationResult = await query(`
+      SELECT
+        c.name as court_name,
+        c.court_number,
+        COUNT(b.id) as total_bookings,
+        COALESCE(SUM(b.duration_minutes), 0) as total_minutes_booked
+      FROM courts c
+      LEFT JOIN bookings b ON c.id = b.court_id
+        AND b.booking_date >= CURRENT_DATE - INTERVAL '${periodInt} days'
+        AND b.status NOT IN ('cancelled')
+      WHERE c.facility_id = $1
+      GROUP BY c.id, c.name, c.court_number
+      ORDER BY c.court_number
+    `, [facilityId]);
+
+    // Top bookers (members with most bookings)
+    const topBookersResult = await query(`
+      SELECT
+        u.full_name as member_name,
+        u.email,
+        COUNT(b.id) as booking_count,
+        COALESCE(SUM(b.duration_minutes), 0) as total_minutes
+      FROM bookings b
+      JOIN users u ON b.user_id = u.id
+      WHERE b.facility_id = $1
+        AND b.booking_date >= CURRENT_DATE - INTERVAL '${periodInt} days'
+        AND b.status != 'cancelled'
+      GROUP BY u.id, u.full_name, u.email
+      ORDER BY booking_count DESC
+      LIMIT 10
     `, [facilityId]);
 
     res.json({
@@ -460,7 +548,12 @@ router.get('/analytics/:facilityId', async (req, res) => {
         bookingsTrend: bookingsTrendResult.rows,
         peakHours: peakHoursResult.rows,
         courtUsage: courtUsageResult.rows,
-        memberGrowth: memberGrowthResult.rows
+        memberGrowth: memberGrowthResult.rows,
+        dayOfWeek: dayOfWeekResult.rows,
+        heatmap: heatmapResult.rows,
+        statusBreakdown: statusBreakdownResult.rows,
+        courtUtilization: courtUtilizationResult.rows,
+        topBookers: topBookersResult.rows
       }
     });
   } catch (error: any) {

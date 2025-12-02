@@ -22,7 +22,6 @@ interface AdminBookingProps {
   onNavigateToBookingManagement?: () => void;
   onNavigateToAdminBooking?: () => void;
   onNavigateToMemberManagement?: () => void;
-  onNavigateToAnalytics?: () => void;
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
 }
@@ -40,7 +39,6 @@ export function AdminBooking({
   onNavigateToBookingManagement = () => {},
   onNavigateToAdminBooking = () => {},
   onNavigateToMemberManagement = () => {},
-  onNavigateToAnalytics = () => {},
   sidebarCollapsed = false,
   onToggleSidebar
 }: AdminBookingProps) {
@@ -104,8 +102,7 @@ export function AdminBooking({
         onNavigateToBookingManagement={onNavigateToBookingManagement}
         onNavigateToAdminBooking={onNavigateToAdminBooking}
         onNavigateToMemberManagement={onNavigateToMemberManagement}
-        onNavigateToAnalytics={onNavigateToAnalytics}
-        onLogout={onLogout}
+                onLogout={onLogout}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={onToggleSidebar}
         currentPage="admin-booking"
@@ -114,7 +111,7 @@ export function AdminBooking({
       <div className={`${sidebarCollapsed ? 'ml-16' : 'ml-64'} transition-all duration-300 ease-in-out p-8`}>
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Create Booking</h1>
+            <h1 className="text-2xl font-medium text-gray-900">Create Booking</h1>
             <p className="text-gray-600 mt-2">Book a court on behalf of a member or walk-in guest</p>
           </div>
 

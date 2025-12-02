@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { UnifiedSidebar } from './UnifiedSidebar';
 import { NotificationBell } from './NotificationBell';
-import { ArrowLeft, Calendar, Clock, Users, MapPin, Tag, Pin, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, Users, MapPin, Tag, Pin, AlertCircle, Plus, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Label } from './ui/label';
 import { useAuth } from '../contexts/AuthContext';
 import { bulletinBoardApi, playerProfileApi } from '../api/client';
 import { toast } from 'sonner';
@@ -26,7 +29,6 @@ interface BulletinBoardProps {
   onNavigateToBookingManagement?: () => void;
   onNavigateToAdminBooking?: () => void;
   onNavigateToMemberManagement?: () => void;
-  onNavigateToAnalytics?: () => void;
   selectedFacilityId?: string;
   onFacilityChange?: (facilityId: string) => void;
   sidebarCollapsed: boolean;
@@ -60,16 +62,13 @@ const typeIcons = {
   announcement: AlertCircle
 };
 
-const typeColors = {
+const typeColors: Record<string, string> = {
   event: 'bg-blue-500',
   clinic: 'bg-green-500',
   tournament: 'bg-purple-500',
   social: 'bg-pink-500',
   announcement: 'bg-orange-500'
 };
-
-const cardColors = ['bg-yellow-100 border-yellow-200', 'bg-pink-100 border-pink-200', 'bg-blue-100 border-blue-200', 'bg-green-100 border-green-200', 'bg-orange-100 border-orange-200', 'bg-purple-100 border-purple-200'];
-const rotations = [-2, 1, 2, -1, -3, 1.5];
 
 export function BulletinBoard({
   onBack,
@@ -87,7 +86,6 @@ export function BulletinBoard({
   onNavigateToBookingManagement = () => {},
   onNavigateToAdminBooking = () => {},
   onNavigateToMemberManagement = () => {},
-  onNavigateToAnalytics = () => {},
   selectedFacilityId,
   onFacilityChange,
   sidebarCollapsed,
@@ -102,12 +100,46 @@ export function BulletinBoard({
   const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedFacility, setSelectedFacility] = useState<string>(clubId || 'all');
   const [selectedPost, setSelectedPost] = useState<BulletinPost | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newPost, setNewPost] = useState({
+    title: '',
+    description: '',
+    type: 'announcement' as 'event' | 'clinic' | 'tournament' | 'social' | 'announcement',
+    eventDate: '',
+    eventTime: '',
+    location: '',
+    maxParticipants: '',
+    facilityId: ''
+  });
+
+  // Check if user is admin of any facility
+  const adminFacilities = memberFacilities.filter((f: any) => f.isFacilityAdmin);
+  const isAdmin = adminFacilities.length > 0;
 
   useEffect(() => {
     if (user?.id) {
       loadData();
     }
   }, [user?.id, selectedFacility]);
+
+  // Map database response to frontend BulletinPost interface
+  const mapPostFromApi = (post: any): BulletinPost => ({
+    id: post.id,
+    title: post.title,
+    description: post.content || post.description || '',
+    type: post.category || post.type || 'announcement',
+    eventDate: post.eventDate || post.postedDate,
+    eventTime: post.eventTime,
+    location: post.location,
+    facilityId: post.facilityId,
+    facilityName: post.facilityName || '',
+    maxParticipants: post.maxParticipants,
+    currentParticipants: post.currentParticipants,
+    isPinned: post.isPinned || false,
+    createdAt: post.createdAt,
+    authorName: post.authorName || 'Unknown'
+  });
 
   const loadData = async () => {
     if (!user?.id) return;
@@ -134,7 +166,11 @@ export function BulletinBoard({
           for (const facility of activeFacilities) {
             const response = await bulletinBoardApi.getPosts(facility.facilityId);
             if (response.success && response.data?.posts) {
-              allPosts.push(...response.data.posts);
+              const mappedPosts = response.data.posts.map((p: any) => ({
+                ...mapPostFromApi(p),
+                facilityName: facility.facilityName
+              }));
+              allPosts.push(...mappedPosts);
             }
           }
         }
@@ -149,7 +185,12 @@ export function BulletinBoard({
         }
         const response = await bulletinBoardApi.getPosts(selectedFacility);
         if (response.success && response.data?.posts) {
-          setPosts(response.data.posts);
+          const facility = activeFacilities.find((f: any) => f.facilityId === selectedFacility);
+          const mappedPosts = response.data.posts.map((p: any) => ({
+            ...mapPostFromApi(p),
+            facilityName: facility?.facilityName || ''
+          }));
+          setPosts(mappedPosts);
         }
       }
     } catch (error) {
@@ -158,6 +199,61 @@ export function BulletinBoard({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCreatePost = async () => {
+    if (!user?.id || !newPost.title || !newPost.description || !newPost.facilityId) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const response = await bulletinBoardApi.create({
+        facilityId: newPost.facilityId,
+        authorId: user.id,
+        title: newPost.title,
+        content: newPost.description,
+        category: newPost.type,
+        isAdminPost: true
+      });
+
+      if (response.success) {
+        toast.success('Post created successfully!');
+        setShowCreateModal(false);
+        setNewPost({
+          title: '',
+          description: '',
+          type: 'announcement',
+          eventDate: '',
+          eventTime: '',
+          location: '',
+          maxParticipants: '',
+          facilityId: ''
+        });
+        // Reload posts
+        loadData();
+      } else {
+        toast.error(response.error || 'Failed to create post');
+      }
+    } catch (error) {
+      console.error('Error creating post:', error);
+      toast.error('Failed to create post');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openCreateModal = () => {
+    // Pre-select facility if only one admin facility or if a specific facility is selected
+    const defaultFacility = selectedFacility !== 'all' && adminFacilities.some(f => f.facilityId === selectedFacility)
+      ? selectedFacility
+      : adminFacilities.length === 1
+        ? adminFacilities[0].facilityId
+        : '';
+
+    setNewPost(prev => ({ ...prev, facilityId: defaultFacility }));
+    setShowCreateModal(true);
   };
 
   // Filter by type
@@ -204,8 +300,7 @@ export function BulletinBoard({
         onNavigateToBookingManagement={onNavigateToBookingManagement}
         onNavigateToAdminBooking={onNavigateToAdminBooking}
         onNavigateToMemberManagement={onNavigateToMemberManagement}
-        onNavigateToAnalytics={onNavigateToAnalytics}
-        onLogout={onLogout}
+                onLogout={onLogout}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={onToggleSidebar}
         currentPage="bulletin-board"
@@ -225,6 +320,12 @@ export function BulletinBoard({
             </div>
             {!hasNoFacilities && (
               <div className="flex items-center gap-3">
+                {isAdmin && (
+                  <Button onClick={openCreateModal} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Create Post
+                  </Button>
+                )}
                 <NotificationBell />
                 <Select value={selectedFacility} onValueChange={setSelectedFacility}>
                   <SelectTrigger className="w-[240px]">
@@ -323,109 +424,89 @@ export function BulletinBoard({
             </div>
           )}
 
-          {/* Bulletin Board - Cork Board Style */}
+          {/* Bulletin Board Posts */}
           {!hasNoFacilities && (
-            <div className="relative bg-gradient-to-br from-amber-700 via-amber-800 to-amber-900 rounded-lg p-12 shadow-xl min-h-[600px]">
-              {/* Cork texture overlay */}
-              <div className="absolute inset-0 opacity-30 rounded-lg"
-                   style={{
-                     backgroundImage: `radial-gradient(circle at 20% 50%, rgba(0,0,0,.1) 1px, transparent 1px),
-                                      radial-gradient(circle at 80% 80%, rgba(0,0,0,.1) 1px, transparent 1px),
-                                      radial-gradient(circle at 40% 20%, rgba(0,0,0,.1) 1px, transparent 1px),
-                                      radial-gradient(circle at 60% 90%, rgba(0,0,0,.1) 1px, transparent 1px)`,
-                     backgroundSize: '100px 100px, 120px 120px, 80px 80px, 150px 150px',
-                     backgroundPosition: '0 0, 40px 40px, 20px 60px, 80px 20px'
-                   }}>
-              </div>
-
+            <div className="space-y-4">
               {/* Empty State */}
               {filteredPosts.length === 0 && (
-                <div className="relative flex items-center justify-center h-[400px]">
-                  <Card className="bg-white p-8 text-center max-w-md">
-                    <Calendar className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
-                    <p className="text-sm text-gray-600">
-                      {selectedType === 'all'
-                        ? 'Check back later for events and announcements from your facilities.'
-                        : `No ${selectedType} posts at the moment.`}
-                    </p>
-                  </Card>
-                </div>
+                <Card className="p-8 text-center">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
+                  <p className="text-sm text-gray-500">
+                    {selectedType === 'all'
+                      ? 'Check back later for events and announcements from your facilities.'
+                      : `No ${selectedType} posts at the moment.`}
+                  </p>
+                </Card>
               )}
 
-              {/* Pinned Notes Grid */}
+              {/* Posts Grid */}
               {filteredPosts.length > 0 && (
-                <div className="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {filteredPosts.map((post, index) => {
-                    const Icon = typeIcons[post.type];
-                    const colorIndex = index % cardColors.length;
-                    const rotationIndex = index % rotations.length;
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredPosts.map((post) => {
+                    const Icon = typeIcons[post.type] || AlertCircle;
+                    const bgColor = {
+                      event: 'bg-blue-50 border-blue-100',
+                      clinic: 'bg-green-50 border-green-100',
+                      tournament: 'bg-purple-50 border-purple-100',
+                      social: 'bg-pink-50 border-pink-100',
+                      announcement: 'bg-orange-50 border-orange-100'
+                    }[post.type] || 'bg-gray-50 border-gray-100';
+
                     return (
-                      <div
+                      <Card
                         key={post.id}
-                        className="relative group cursor-pointer"
+                        className={`${bgColor} border hover:shadow-md transition-shadow cursor-pointer`}
                         onClick={() => setSelectedPost(post)}
                       >
-                        {/* Push Pin */}
-                        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-10">
-                          <Pin className={`h-6 w-6 ${post.isPinned ? 'text-red-600 fill-red-600' : 'text-gray-400 fill-gray-400'} drop-shadow-md`} />
-                        </div>
-
-                        {/* Note Card */}
-                        <Card
-                          className={`${cardColors[colorIndex]} border-2 p-5 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 relative overflow-hidden rounded-none`}
-                        >
-                          {/* Tape effect on corners */}
-                          <div className="absolute top-0 right-0 w-16 h-6 bg-white/40 shadow-sm"></div>
-                          <div className="absolute bottom-0 left-0 w-16 h-6 bg-white/40 shadow-sm"></div>
-
-                          <div className="space-y-3">
-                            {/* Header */}
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1">
-                                <h3 className="font-bold text-gray-800 text-lg leading-tight">{post.title}</h3>
-                                <p className="text-xs text-gray-600 font-medium mt-1">{post.facilityName}</p>
+                        <div className="p-6">
+                          {/* Header with type badge */}
+                          <div className="flex items-start justify-between gap-3 mb-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                {post.isPinned && (
+                                  <Pin className="h-3.5 w-3.5 text-red-500 fill-red-500 flex-shrink-0" />
+                                )}
+                                <h3 className="font-semibold text-gray-900 truncate">{post.title}</h3>
                               </div>
-                              <div className={`${typeColors[post.type]} p-1.5 rounded-full flex-shrink-0`}>
-                                <Icon className="h-4 w-4 text-white" />
-                              </div>
+                              <p className="text-xs text-gray-500">{post.facilityName}</p>
                             </div>
-
-                            {/* Description */}
-                            <p className="text-sm text-gray-700 line-clamp-3">{post.description}</p>
-
-                            {/* Details */}
-                            {(post.eventDate || post.eventTime) && (
-                              <div className="space-y-2 text-sm">
-                                {post.eventDate && (
-                                  <div className="flex items-center text-gray-700">
-                                    <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
-                                    <span className="font-medium">{new Date(post.eventDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                                  </div>
-                                )}
-                                {post.eventTime && (
-                                  <div className="flex items-center text-gray-700">
-                                    <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
-                                    <span>{post.eventTime}</span>
-                                  </div>
-                                )}
-                                {post.maxParticipants && (
-                                  <div className="flex items-center text-gray-700">
-                                    <Users className="h-4 w-4 mr-2 flex-shrink-0" />
-                                    <span className="font-medium">{(post.maxParticipants - (post.currentParticipants || 0))} spots left</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Author & Date */}
-                            <div className="pt-2 border-t border-gray-300 text-xs text-gray-600">
-                              <p>Posted by {post.authorName}</p>
-                              <p>{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
-                            </div>
+                            <Badge variant="outline" className="text-gray-700 text-xs capitalize flex-shrink-0 bg-white/80">
+                              <Icon className={`h-3 w-3 mr-1 ${typeColors[post.type]?.replace('bg-', 'text-') || 'text-gray-500'}`} />
+                              {post.type}
+                            </Badge>
                           </div>
-                        </Card>
-                      </div>
+
+                          {/* Description */}
+                          <p className="text-sm text-gray-600 line-clamp-2 mb-4">{post.description}</p>
+
+                          {/* Event Details */}
+                          {post.eventDate && (
+                            <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
+                              <div className="flex items-center gap-1.5">
+                                <Calendar className="h-4 w-4 text-gray-400" />
+                                <span>{new Date(post.eventDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                              </div>
+                              {post.eventTime && (
+                                <div className="flex items-center gap-1.5">
+                                  <Clock className="h-4 w-4 text-gray-400" />
+                                  <span>{post.eventTime}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Footer */}
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                            <span className="text-xs text-gray-500">
+                              Posted by {post.authorName}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </span>
+                          </div>
+                        </div>
+                      </Card>
                     );
                   })}
                 </div>
@@ -541,6 +622,188 @@ export function BulletinBoard({
                   </Button>
                   <Button variant="outline" className="flex-1" onClick={() => toast.info('Share feature coming soon')}>
                     Share
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Create Post Modal */}
+      {showCreateModal && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowCreateModal(false)}
+        >
+          <Card
+            className="max-w-xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">Create Bulletin Post</h2>
+                <Button variant="ghost" size="sm" onClick={() => setShowCreateModal(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Form */}
+              <div className="space-y-4">
+                {/* Facility Selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="facility">Facility *</Label>
+                  <Select
+                    value={newPost.facilityId}
+                    onValueChange={(value) => setNewPost(prev => ({ ...prev, facilityId: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a facility" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {adminFacilities.map(facility => (
+                        <SelectItem key={facility.facilityId} value={facility.facilityId}>
+                          {facility.facilityName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Post Type */}
+                <div className="space-y-2">
+                  <Label htmlFor="type">Post Type *</Label>
+                  <Select
+                    value={newPost.type}
+                    onValueChange={(value: 'event' | 'clinic' | 'tournament' | 'social' | 'announcement') =>
+                      setNewPost(prev => ({ ...prev, type: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="announcement">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-orange-500" />
+                          Announcement
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="event">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-blue-500" />
+                          Event
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="clinic">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-green-500" />
+                          Clinic
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="tournament">
+                        <div className="flex items-center gap-2">
+                          <Tag className="h-4 w-4 text-purple-500" />
+                          Tournament
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="social">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-pink-500" />
+                          Social
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Title */}
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title *</Label>
+                  <Input
+                    id="title"
+                    value={newPost.title}
+                    onChange={(e) => setNewPost(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Enter post title"
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description *</Label>
+                  <Textarea
+                    id="description"
+                    value={newPost.description}
+                    onChange={(e) => setNewPost(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Enter post description"
+                    rows={4}
+                  />
+                </div>
+
+                {/* Event-specific fields */}
+                {newPost.type !== 'announcement' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="eventDate">Event Date</Label>
+                        <Input
+                          id="eventDate"
+                          type="date"
+                          value={newPost.eventDate}
+                          onChange={(e) => setNewPost(prev => ({ ...prev, eventDate: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="eventTime">Event Time</Label>
+                        <Input
+                          id="eventTime"
+                          type="time"
+                          value={newPost.eventTime}
+                          onChange={(e) => setNewPost(prev => ({ ...prev, eventTime: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="location">Location</Label>
+                      <Input
+                        id="location"
+                        value={newPost.location}
+                        onChange={(e) => setNewPost(prev => ({ ...prev, location: e.target.value }))}
+                        placeholder="e.g., Main Court, Club House"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="maxParticipants">Max Participants</Label>
+                      <Input
+                        id="maxParticipants"
+                        type="number"
+                        min="0"
+                        value={newPost.maxParticipants}
+                        onChange={(e) => setNewPost(prev => ({ ...prev, maxParticipants: e.target.value }))}
+                        placeholder="Leave empty for unlimited"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setShowCreateModal(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={handleCreatePost}
+                    disabled={isSubmitting || !newPost.title || !newPost.description || !newPost.facilityId}
+                  >
+                    {isSubmitting ? 'Creating...' : 'Create Post'}
                   </Button>
                 </div>
               </div>

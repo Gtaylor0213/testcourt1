@@ -1,15 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { UnifiedSidebar } from '../UnifiedSidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Calendar, Search, X, Eye } from 'lucide-react';
+import { Calendar, Search, X, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { useAuth } from '../../contexts/AuthContext';
 import { adminApi, facilitiesApi } from '../../api/client';
 import { toast } from 'sonner';
+
+type SortField = 'bookingDate' | 'userName' | 'courtName' | 'status' | 'startTime';
+type SortDirection = 'asc' | 'desc';
 
 interface BookingManagementProps {
   onBack: () => void;
@@ -26,7 +29,6 @@ interface BookingManagementProps {
   onNavigateToBookingManagement?: () => void;
   onNavigateToAdminBooking?: () => void;
   onNavigateToMemberManagement?: () => void;
-  onNavigateToAnalytics?: () => void;
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
 }
@@ -59,7 +61,6 @@ export function BookingManagement({
   onNavigateToBookingManagement = () => {},
   onNavigateToAdminBooking = () => {},
   onNavigateToMemberManagement = () => {},
-  onNavigateToAnalytics = () => {},
   sidebarCollapsed = false,
   onToggleSidebar
 }: BookingManagementProps) {
@@ -72,6 +73,12 @@ export function BookingManagement({
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [courts, setCourts] = useState<Array<{ id: string; name: string; courtNumber: number }>>([]);
   const [loading, setLoading] = useState(true);
+
+  // Sorting and pagination state
+  const [sortField, setSortField] = useState<SortField>('bookingDate');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(15);
 
   const currentFacilityId = user?.memberFacilities?.[0];
 
@@ -127,15 +134,22 @@ export function BookingManagement({
       };
 
       const response = await adminApi.getBookings(currentFacilityId, filters);
+      console.log('Bookings API response:', JSON.stringify(response, null, 2));
 
-      if (response.success && response.data?.data?.bookings) {
-        const bookings = response.data.data.bookings;
-        console.log(`Loaded ${bookings.length} bookings`);
-        setBookings(bookings);
-      } else if (response.success && response.data?.bookings) {
-        // Fallback for direct structure
-        console.log(`Loaded ${response.data.bookings.length} bookings`);
-        setBookings(response.data.bookings);
+      if (response.success) {
+        // Handle different response structures
+        let bookingsData: Booking[] = [];
+
+        if (response.data?.data?.bookings) {
+          bookingsData = response.data.data.bookings;
+        } else if (response.data?.bookings) {
+          bookingsData = response.data.bookings;
+        } else if (Array.isArray(response.data)) {
+          bookingsData = response.data;
+        }
+
+        console.log(`Loaded ${bookingsData.length} bookings`);
+        setBookings(bookingsData);
       } else {
         console.error('Failed to load bookings:', response.error);
         toast.error(response.error || 'Failed to load bookings');
@@ -180,13 +194,85 @@ export function BookingManagement({
     }
   };
 
-  const filteredBookings = bookings.filter(booking => {
-    const matchesSearch =
-      booking.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.courtName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.userEmail.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  // Filter, sort, and paginate bookings
+  const filteredBookings = useMemo(() => {
+    let result = bookings.filter((booking: Booking) => {
+      // If no search term, show all bookings
+      if (!searchTerm.trim()) return true;
+
+      const searchLower = searchTerm.toLowerCase().trim();
+      return (
+        (booking.userName?.toLowerCase() || '').includes(searchLower) ||
+        (booking.courtName?.toLowerCase() || '').includes(searchLower) ||
+        (booking.userEmail?.toLowerCase() || '').includes(searchLower) ||
+        (booking.bookingType?.toLowerCase() || '').includes(searchLower) ||
+        (booking.notes?.toLowerCase() || '').includes(searchLower)
+      );
+    });
+
+    // Sort
+    result.sort((a, b) => {
+      let aVal: string | number = '';
+      let bVal: string | number = '';
+
+      switch (sortField) {
+        case 'bookingDate':
+          aVal = `${a.bookingDate} ${a.startTime}`;
+          bVal = `${b.bookingDate} ${b.startTime}`;
+          break;
+        case 'userName':
+          aVal = a.userName?.toLowerCase() || '';
+          bVal = b.userName?.toLowerCase() || '';
+          break;
+        case 'courtName':
+          aVal = a.courtName?.toLowerCase() || '';
+          bVal = b.courtName?.toLowerCase() || '';
+          break;
+        case 'status':
+          aVal = a.status;
+          bVal = b.status;
+          break;
+        case 'startTime':
+          aVal = a.startTime;
+          bVal = b.startTime;
+          break;
+      }
+
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [bookings, searchTerm, sortField, sortDirection]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
+  const paginatedBookings = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredBookings.slice(start, start + itemsPerPage);
+  }, [filteredBookings, currentPage, itemsPerPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus, filterCourt, startDate, endDate]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ChevronsUpDown className="h-4 w-4 ml-1 opacity-50" />;
+    return sortDirection === 'asc'
+      ? <ChevronUp className="h-4 w-4 ml-1" />
+      : <ChevronDown className="h-4 w-4 ml-1" />;
+  };
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -202,9 +288,13 @@ export function BookingManagement({
     return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDateShort = (dateString: string) => {
+    // Handle both ISO timestamp (2025-12-08T05:00:00.000Z) and date-only (2025-12-08) formats
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   const formatTime = (timeStr: string) => {
@@ -239,8 +329,7 @@ export function BookingManagement({
         onNavigateToBookingManagement={onNavigateToBookingManagement}
         onNavigateToAdminBooking={onNavigateToAdminBooking}
         onNavigateToMemberManagement={onNavigateToMemberManagement}
-        onNavigateToAnalytics={onNavigateToAnalytics}
-        onLogout={onLogout}
+                onLogout={onLogout}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={onToggleSidebar}
         currentPage="booking-management"
@@ -249,7 +338,7 @@ export function BookingManagement({
       <div className={`${sidebarCollapsed ? 'ml-16' : 'ml-64'} transition-all duration-300 ease-in-out p-8`}>
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Booking Management</h1>
+            <h1 className="text-2xl font-medium text-gray-900">Booking Management</h1>
             <Button onClick={onNavigateToAdminBooking}>
               <Calendar className="h-4 w-4 mr-2" />
               Create New Booking
@@ -270,7 +359,7 @@ export function BookingManagement({
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       id="search"
-                      placeholder="Member name or court..."
+                      placeholder="Name, email, court, type, notes..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10"
@@ -330,79 +419,190 @@ export function BookingManagement({
             </CardContent>
           </Card>
 
-          {/* Bookings List */}
+          {/* Bookings Table */}
           <Card>
-            <CardHeader>
-              <CardTitle>All Bookings ({filteredBookings.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {filteredBookings.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    No bookings found matching your filters.
-                  </div>
-                ) : (
-                  filteredBookings.map((booking) => (
-                    <div
-                      key={booking.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-4">
-                        <div>
-                          <div className="text-sm text-gray-500">Court</div>
-                          <div className="font-medium">{booking.courtName}</div>
-                          <div className="text-xs text-gray-400">Court #{booking.courtNumber}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-gray-500">Member</div>
-                          <div className="font-medium">{booking.userName}</div>
-                          <div className="text-xs text-gray-400">{booking.userEmail}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-gray-500">Date</div>
-                          <div className="font-medium">{formatDate(booking.bookingDate)}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-gray-500">Time</div>
-                          <div className="font-medium">
-                            {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-gray-500">Type</div>
-                          <div className="font-medium capitalize">{booking.bookingType}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-gray-500">Status</div>
-                          <Badge className={getStatusColor(booking.status)}>{formatStatus(booking.status)}</Badge>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 ml-4">
-                        {booking.status === 'confirmed' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleCompleteBooking(booking.id)}
-                            className="text-blue-600 hover:text-blue-700"
-                          >
-                            Complete
-                          </Button>
-                        )}
-                        {booking.status !== 'cancelled' && booking.status !== 'completed' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleCancelBooking(booking.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">
+                  Bookings ({filteredBookings.length})
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm text-gray-500">Show:</Label>
+                  <Select value={itemsPerPage.toString()} onValueChange={(v) => setItemsPerPage(Number(v))}>
+                    <SelectTrigger className="w-20 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="15">15</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-y">
+                    <tr>
+                      <th
+                        className="px-4 py-3 text-left font-medium text-gray-600 cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('bookingDate')}
+                      >
+                        <div className="flex items-center">
+                          Date/Time
+                          <SortIcon field="bookingDate" />
+                        </div>
+                      </th>
+                      <th
+                        className="px-4 py-3 text-left font-medium text-gray-600 cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('userName')}
+                      >
+                        <div className="flex items-center">
+                          Member
+                          <SortIcon field="userName" />
+                        </div>
+                      </th>
+                      <th
+                        className="px-4 py-3 text-left font-medium text-gray-600 cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('courtName')}
+                      >
+                        <div className="flex items-center">
+                          Court
+                          <SortIcon field="courtName" />
+                        </div>
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Type</th>
+                      <th
+                        className="px-4 py-3 text-left font-medium text-gray-600 cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('status')}
+                      >
+                        <div className="flex items-center">
+                          Status
+                          <SortIcon field="status" />
+                        </div>
+                      </th>
+                      <th className="px-4 py-3 text-right font-medium text-gray-600">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {paginatedBookings.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                          No bookings found matching your filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedBookings.map((booking: Booking) => (
+                        <tr key={booking.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-2">
+                            <div className="font-medium">{formatDateShort(booking.bookingDate)}</div>
+                            <div className="text-xs text-gray-500">
+                              {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2">
+                            <div className="font-medium truncate max-w-[150px]" title={booking.userName}>
+                              {booking.userName}
+                            </div>
+                            <div className="text-xs text-gray-500 truncate max-w-[150px]" title={booking.userEmail}>
+                              {booking.userEmail}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2">
+                            <span className="font-medium">{booking.courtName}</span>
+                            <span className="text-gray-400 text-xs ml-1">#{booking.courtNumber}</span>
+                          </td>
+                          <td className="px-4 py-2 capitalize">{booking.bookingType}</td>
+                          <td className="px-4 py-2">
+                            <Badge className={`${getStatusColor(booking.status)} text-xs`}>
+                              {formatStatus(booking.status)}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-2">
+                            <div className="flex justify-end gap-1">
+                              {booking.status === 'confirmed' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleCompleteBooking(booking.id)}
+                                  className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                >
+                                  Complete
+                                </Button>
+                              )}
+                              {booking.status !== 'cancelled' && booking.status !== 'completed' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleCancelBooking(booking.id)}
+                                  className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
+                  <div className="text-sm text-gray-500">
+                    Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredBookings.length)} of {filteredBookings.length}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className="h-8 px-2"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      <ChevronLeft className="h-4 w-4 -ml-2" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="h-8 px-2"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="px-3 text-sm">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="h-8 px-2"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="h-8 px-2"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-4 w-4 -ml-2" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

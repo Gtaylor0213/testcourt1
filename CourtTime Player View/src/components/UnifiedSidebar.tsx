@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { User, LogOut, ChevronLeft, ChevronRight, ChevronDown, Calendar, Building2, LayoutDashboard, UserSearch, Settings, Users, BarChart3, BookOpen, UserCog, MessageSquare, MessageCircle } from 'lucide-react';
+import { User, LogOut, ChevronLeft, ChevronRight, ChevronDown, Calendar, Building2, LayoutDashboard, UserSearch, Users, BookOpen, UserCog, MessageSquare, MessageCircle } from 'lucide-react';
 import logoImage from 'figma:asset/8775e46e6be583b8cd937eefe50d395e0a3fcf52.png';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -33,7 +33,6 @@ interface UnifiedSidebarProps {
   onNavigateToBookingManagement?: () => void;
   onNavigateToAdminBooking?: () => void;
   onNavigateToMemberManagement?: () => void;
-  onNavigateToAnalytics?: () => void;
   onLogout: () => void;
   facilities?: Facility[];
   selectedFacilityId?: string;
@@ -60,7 +59,6 @@ export function UnifiedSidebar({
   onNavigateToBookingManagement = () => {},
   onNavigateToAdminBooking = () => {},
   onNavigateToMemberManagement = () => {},
-  onNavigateToAnalytics = () => {},
   onLogout,
   facilities = [],
   selectedFacilityId,
@@ -227,13 +225,7 @@ export function UnifiedSidebar({
                   onClick={onNavigateToFacilityManagement}
                   icon={Building2}
                   label="Facility Management"
-                  isActive={currentPage === 'facility-management'}
-                />
-                <SidebarButton
-                  onClick={onNavigateToCourtManagement}
-                  icon={Settings}
-                  label="Court Details"
-                  isActive={currentPage === 'court-management'}
+                  isActive={currentPage === 'facility-management' || currentPage === 'court-management'}
                 />
                 <SidebarButton
                   onClick={onNavigateToBookingManagement}
@@ -252,12 +244,6 @@ export function UnifiedSidebar({
                   icon={UserCog}
                   label="Member Management"
                   isActive={currentPage === 'member-management'}
-                />
-                <SidebarButton
-                  onClick={onNavigateToAnalytics}
-                  icon={BarChart3}
-                  label="Analytics & Reports"
-                  isActive={currentPage === 'analytics'}
                 />
               </div>
             </div>

@@ -63,6 +63,9 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [loadingMembers, setLoadingMembers] = useState(false);
 
+  // Track if we've processed the initial selectedRecipientId
+  const [processedRecipientId, setProcessedRecipientId] = useState<string | null>(null);
+
   useEffect(() => {
     if (facilityId && user?.id) {
       loadConversations();
@@ -84,7 +87,8 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
 
   // Auto-select conversation when recipient is specified
   useEffect(() => {
-    if (selectedRecipientId && user?.id && facilityId) {
+    // Only process if we have a new selectedRecipientId that we haven't processed yet
+    if (selectedRecipientId && user?.id && facilityId && selectedRecipientId !== processedRecipientId) {
       // Try to find existing conversation with this recipient
       const existingConv = conversations.find(
         conv => conv.otherUser.id === selectedRecipientId
@@ -94,12 +98,15 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
         // Select the existing conversation
         setSelectedConversation(existingConv.id);
         setNewConversationUser(null);
-      } else {
-        // No existing conversation - fetch user details and start a new conversation
+        setProcessedRecipientId(selectedRecipientId);
+      } else if (!loading) {
+        // Only load recipient details after conversations have finished loading
+        // This ensures we don't miss an existing conversation that's still loading
         loadRecipientDetails(selectedRecipientId);
+        setProcessedRecipientId(selectedRecipientId);
       }
     }
-  }, [selectedRecipientId, conversations, user?.id, facilityId]);
+  }, [selectedRecipientId, conversations, user?.id, facilityId, loading, processedRecipientId]);
 
   const loadRecipientDetails = async (recipientId: string) => {
     try {
@@ -108,14 +115,15 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
       if (response.success && response.data?.member) {
         const member = response.data.member;
         // Create a new conversation UI state
+        // API returns userId and fullName (not user_id and name)
         setNewConversationUser({
-          id: member.user_id,
-          name: member.name,
+          id: member.userId,
+          name: member.fullName,
           email: member.email
         });
         setSelectedConversation(null); // Clear any existing selection
         setMessages([]); // Clear messages
-        toast.success(`Starting new conversation with ${member.name}`);
+        toast.success(`Starting new conversation with ${member.fullName}`);
       }
     } catch (error) {
       console.error('Error loading recipient details:', error);
@@ -307,14 +315,18 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
     const diff = now.getTime() - date.getTime();
     const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
 
+    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
     if (diffDays === 0) {
-      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      return `Today at ${timeStr}`;
     } else if (diffDays === 1) {
-      return 'Yesterday';
+      return `Yesterday at ${timeStr}`;
     } else if (diffDays < 7) {
-      return date.toLocaleDateString('en-US', { weekday: 'short' });
+      const dayStr = date.toLocaleDateString('en-US', { weekday: 'short' });
+      return `${dayStr} at ${timeStr}`;
     } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return `${dateStr} at ${timeStr}`;
     }
   };
 
@@ -336,17 +348,17 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
+      <div className="flex items-center justify-center bg-white rounded-lg border" style={{ height: 'calc(100vh - 160px)' }}>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-[calc(100vh-16rem)] bg-white rounded-lg border">
+    <div className="flex bg-white rounded-lg border overflow-hidden" style={{ height: 'calc(100vh - 160px)' }}>
       {/* Conversations List */}
-      <div className="w-80 border-r flex flex-col">
-        <div className="p-4 border-b">
+      <div className="w-80 border-r flex flex-col h-full">
+        <div className="flex-shrink-0 p-4 border-b">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold">Messages</h2>
             <Button
@@ -369,7 +381,7 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {filteredConversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full p-6 text-center">
               <MessageCircle className="h-12 w-12 text-gray-300 mb-3" />
@@ -426,11 +438,11 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0 h-full overflow-hidden">
         {selectedConv || newConversationUser ? (
-          <>
-            {/* Chat Header */}
-            <div className="p-4 border-b flex items-center justify-between">
+          <div className="flex flex-col h-full">
+            {/* Chat Header - Fixed */}
+            <div className="flex-shrink-0 p-4 border-b flex items-center justify-between bg-white">
               <div className="flex items-center gap-3">
                 <Avatar>
                   <AvatarFallback className="bg-blue-100 text-blue-700">
@@ -457,8 +469,8 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
               </Button>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Messages - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ minHeight: 0 }}>
               {messages.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-gray-500 text-sm">
                   No messages yet. Start the conversation!
@@ -497,8 +509,8 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Message Input */}
-            <div className="p-4 border-t">
+            {/* Message Input - Fixed at bottom */}
+            <div className="flex-shrink-0 p-4 border-t bg-white">
               <div className="flex gap-2">
                 <Input
                   placeholder="Type a message..."
@@ -517,7 +529,7 @@ export function Messages({ facilityId, facilityName, selectedRecipientId }: Mess
                 </Button>
               </div>
             </div>
-          </>
+          </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
             <Users className="h-16 w-16 text-gray-300 mb-4" />

@@ -43,6 +43,7 @@ interface AdditionalUserData {
   zipCode?: string;
   skillLevel?: string;
   bio?: string;
+  profilePicture?: string;
   notificationPreferences?: {
     emailBookingConfirmations?: boolean;
     smsReminders?: boolean;
@@ -139,9 +140,9 @@ export async function registerUser(
       // Create player profile if user is a player
       if (userType === 'player') {
         await client.query(
-          `INSERT INTO player_profiles (user_id, skill_level, bio)
-           VALUES ($1, $2, $3)`,
-          [user.id, additionalData?.skillLevel || null, additionalData?.bio || null]
+          `INSERT INTO player_profiles (user_id, skill_level, bio, profile_image_url)
+           VALUES ($1, $2, $3, $4)`,
+          [user.id, additionalData?.skillLevel || null, additionalData?.bio || null, additionalData?.profilePicture || null]
         );
       }
 
@@ -248,22 +249,26 @@ export async function getUserById(userId: string): Promise<User | null> {
   try {
     const result = await query(
       `SELECT
-        id,
-        email,
-        full_name as "fullName",
-        first_name as "firstName",
-        last_name as "lastName",
-        address,
-        street_address as "streetAddress",
-        city,
-        state,
-        zip_code as "zipCode",
-        phone,
-        user_type as "userType",
-        created_at as "createdAt",
-        updated_at as "updatedAt"
-       FROM users
-       WHERE id = $1`,
+        u.id,
+        u.email,
+        u.full_name as "fullName",
+        u.first_name as "firstName",
+        u.last_name as "lastName",
+        u.address,
+        u.street_address as "streetAddress",
+        u.city,
+        u.state,
+        u.zip_code as "zipCode",
+        u.phone,
+        u.user_type as "userType",
+        u.created_at as "createdAt",
+        u.updated_at as "updatedAt",
+        pp.skill_level as "skillLevel",
+        pp.bio,
+        pp.profile_image_url as "profileImageUrl"
+       FROM users u
+       LEFT JOIN player_profiles pp ON u.id = pp.user_id
+       WHERE u.id = $1`,
       [userId]
     );
 
@@ -353,6 +358,7 @@ export async function updateUserProfile(
 
 /**
  * Add user to facility
+ * New members start as 'pending' unless their address is on the whitelist
  */
 export async function addUserToFacility(
   userId: string,
@@ -360,12 +366,50 @@ export async function addUserToFacility(
   membershipType: string = 'Full'
 ): Promise<boolean> {
   try {
+    // Get user's address to check against whitelist
+    const userResult = await query(
+      `SELECT street_address as "streetAddress" FROM users WHERE id = $1`,
+      [userId]
+    );
+
+    let status: 'active' | 'pending' = 'pending';
+
+    // Check if user's address is on the whitelist for auto-approval
+    if (userResult.rows.length > 0 && userResult.rows[0].streetAddress) {
+      const whitelistResult = await query(
+        `SELECT accounts_limit as "accountsLimit"
+         FROM address_whitelist
+         WHERE facility_id = $1 AND LOWER(address) = LOWER($2)`,
+        [facilityId, userResult.rows[0].streetAddress]
+      );
+
+      if (whitelistResult.rows.length > 0) {
+        // Check if account limit hasn't been exceeded
+        const countResult = await query(
+          `SELECT COUNT(DISTINCT u.id) as count
+           FROM users u
+           JOIN facility_memberships fm ON u.id = fm.user_id
+           WHERE fm.facility_id = $1
+             AND LOWER(u.street_address) = LOWER($2)
+             AND fm.status IN ('active', 'pending')`,
+          [facilityId, userResult.rows[0].streetAddress]
+        );
+
+        const currentCount = parseInt(countResult.rows[0].count) || 0;
+        const limit = whitelistResult.rows[0].accountsLimit;
+
+        if (currentCount < limit) {
+          status = 'active';
+        }
+      }
+    }
+
     await query(
       `INSERT INTO facility_memberships (user_id, facility_id, membership_type, status, start_date)
-       VALUES ($1, $2, $3, 'active', CURRENT_DATE)
+       VALUES ($1, $2, $3, $4, CURRENT_DATE)
        ON CONFLICT (user_id, facility_id)
-       DO UPDATE SET status = 'active', membership_type = $3`,
-      [userId, facilityId, membershipType]
+       DO UPDATE SET status = $4, membership_type = $3`,
+      [userId, facilityId, membershipType, status]
     );
 
     return true;

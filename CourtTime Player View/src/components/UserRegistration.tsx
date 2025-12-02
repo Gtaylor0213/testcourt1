@@ -106,12 +106,12 @@ export function UserRegistration({ onBack, onRegistrationComplete }: UserRegistr
           const facilities = response.data.facilities.map((facility: any) => ({
             id: facility.id,
             name: facility.name,
-            type: facility.facilityType || 'Tennis Facility',
-            location: `${facility.city}, ${facility.state}`,
-            description: facility.description || 'Tennis facility',
-            courts: facility.courtCount || 0,
-            members: facility.memberCount || 0,
-            requiresApproval: true // All facilities require approval for membership
+            type: facility.type || 'Tennis Facility',
+            location: facility.location || 'Location not specified',
+            description: facility.description || '',
+            courts: facility.courts || 0,
+            members: facility.members || 0,
+            requiresApproval: facility.requiresApproval ?? true
           }));
           setFacilitySearchResults(facilities);
         }
@@ -201,6 +201,7 @@ export function UserRegistration({ onBack, onRegistrationComplete }: UserRegistr
           zipCode: formData.zipCode,
           skillLevel: formData.skillLevel,
           bio: formData.bio,
+          profilePicture: formData.profilePicture,
           notificationPreferences: formData.notificationPreferences
         }
       );
@@ -343,13 +344,66 @@ export function UserRegistration({ onBack, onRegistrationComplete }: UserRegistr
 
                 <div>
                   <Label htmlFor="state">State *</Label>
-                  <Input
-                    id="state"
+                  <Select
                     value={formData.state}
-                    onChange={(e) => handleInputChange('state', e.target.value)}
-                    placeholder="State"
-                    className={errors.state ? 'border-red-500' : ''}
-                  />
+                    onValueChange={(value) => handleInputChange('state', value)}
+                  >
+                    <SelectTrigger className={errors.state ? 'border-red-500' : ''}>
+                      <SelectValue placeholder="State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="AL">AL</SelectItem>
+                      <SelectItem value="AK">AK</SelectItem>
+                      <SelectItem value="AZ">AZ</SelectItem>
+                      <SelectItem value="AR">AR</SelectItem>
+                      <SelectItem value="CA">CA</SelectItem>
+                      <SelectItem value="CO">CO</SelectItem>
+                      <SelectItem value="CT">CT</SelectItem>
+                      <SelectItem value="DE">DE</SelectItem>
+                      <SelectItem value="FL">FL</SelectItem>
+                      <SelectItem value="GA">GA</SelectItem>
+                      <SelectItem value="HI">HI</SelectItem>
+                      <SelectItem value="ID">ID</SelectItem>
+                      <SelectItem value="IL">IL</SelectItem>
+                      <SelectItem value="IN">IN</SelectItem>
+                      <SelectItem value="IA">IA</SelectItem>
+                      <SelectItem value="KS">KS</SelectItem>
+                      <SelectItem value="KY">KY</SelectItem>
+                      <SelectItem value="LA">LA</SelectItem>
+                      <SelectItem value="ME">ME</SelectItem>
+                      <SelectItem value="MD">MD</SelectItem>
+                      <SelectItem value="MA">MA</SelectItem>
+                      <SelectItem value="MI">MI</SelectItem>
+                      <SelectItem value="MN">MN</SelectItem>
+                      <SelectItem value="MS">MS</SelectItem>
+                      <SelectItem value="MO">MO</SelectItem>
+                      <SelectItem value="MT">MT</SelectItem>
+                      <SelectItem value="NE">NE</SelectItem>
+                      <SelectItem value="NV">NV</SelectItem>
+                      <SelectItem value="NH">NH</SelectItem>
+                      <SelectItem value="NJ">NJ</SelectItem>
+                      <SelectItem value="NM">NM</SelectItem>
+                      <SelectItem value="NY">NY</SelectItem>
+                      <SelectItem value="NC">NC</SelectItem>
+                      <SelectItem value="ND">ND</SelectItem>
+                      <SelectItem value="OH">OH</SelectItem>
+                      <SelectItem value="OK">OK</SelectItem>
+                      <SelectItem value="OR">OR</SelectItem>
+                      <SelectItem value="PA">PA</SelectItem>
+                      <SelectItem value="RI">RI</SelectItem>
+                      <SelectItem value="SC">SC</SelectItem>
+                      <SelectItem value="SD">SD</SelectItem>
+                      <SelectItem value="TN">TN</SelectItem>
+                      <SelectItem value="TX">TX</SelectItem>
+                      <SelectItem value="UT">UT</SelectItem>
+                      <SelectItem value="VT">VT</SelectItem>
+                      <SelectItem value="VA">VA</SelectItem>
+                      <SelectItem value="WA">WA</SelectItem>
+                      <SelectItem value="WV">WV</SelectItem>
+                      <SelectItem value="WI">WI</SelectItem>
+                      <SelectItem value="WY">WY</SelectItem>
+                    </SelectContent>
+                  </Select>
                   {errors.state && <p className="text-sm text-red-500 mt-1">{errors.state}</p>}
                 </div>
 

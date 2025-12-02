@@ -407,10 +407,10 @@ export function PlayerProfile({
                     {profileData.skillLevel ? `${profileData.skillLevel} Level` : 'No skill level set'}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="text-center space-y-2">
-                  <div className="text-sm text-gray-600">
-                    <User className="h-4 w-4 inline mr-1" />
-                    {profileData.email}
+                <CardContent className="space-y-2">
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+                    <User className="h-4 w-4 flex-shrink-0" />
+                    <span>{profileData.email}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -504,7 +504,7 @@ export function PlayerProfile({
                   <div>
                     <Label htmlFor="skillLevel">Skill Level</Label>
                     <Select
-                      value={profileData.skillLevel}
+                      value={profileData.skillLevel?.toLowerCase() || ''}
                       onValueChange={(value) => setProfileData(prev => ({ ...prev, skillLevel: value }))}
                       disabled={!isEditing}
                     >
@@ -512,10 +512,10 @@ export function PlayerProfile({
                         <SelectValue placeholder="Select skill level" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Beginner">Beginner</SelectItem>
-                        <SelectItem value="Intermediate">Intermediate</SelectItem>
-                        <SelectItem value="Advanced">Advanced</SelectItem>
-                        <SelectItem value="Professional">Professional</SelectItem>
+                        <SelectItem value="beginner">Beginner</SelectItem>
+                        <SelectItem value="intermediate">Intermediate</SelectItem>
+                        <SelectItem value="advanced">Advanced</SelectItem>
+                        <SelectItem value="professional">Professional</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

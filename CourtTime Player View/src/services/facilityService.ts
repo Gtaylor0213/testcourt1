@@ -58,11 +58,16 @@ export async function getAllFacilities(): Promise<Facility[]> {
         name,
         type,
         address,
+        street_address as "streetAddress",
+        city,
+        state,
+        zip_code as "zipCode",
         phone,
         email,
         description,
         amenities,
         operating_hours as "operatingHours",
+        logo_url as "logoUrl",
         created_at as "createdAt",
         updated_at as "updatedAt"
       FROM facilities
@@ -87,7 +92,12 @@ export async function searchFacilities(searchQuery: string): Promise<any[]> {
         f.name,
         f.type,
         f.address,
+        f.street_address,
+        f.city,
+        f.state,
+        f.zip_code,
         f.description,
+        f.logo_url,
         COUNT(DISTINCT c.id) as courts,
         COUNT(DISTINCT fm.user_id) as members
       FROM facilities f
@@ -97,8 +107,10 @@ export async function searchFacilities(searchQuery: string): Promise<any[]> {
         LOWER(f.name) LIKE LOWER($1) OR
         LOWER(f.type) LIKE LOWER($1) OR
         LOWER(f.address) LIKE LOWER($1) OR
+        LOWER(f.street_address) LIKE LOWER($1) OR
+        LOWER(f.city) LIKE LOWER($1) OR
         LOWER(f.description) LIKE LOWER($1)
-      GROUP BY f.id, f.name, f.type, f.address, f.description
+      GROUP BY f.id, f.name, f.type, f.address, f.street_address, f.city, f.state, f.zip_code, f.description, f.logo_url
       ORDER BY f.name
     `, [`%${searchQuery}%`]);
 
@@ -106,8 +118,13 @@ export async function searchFacilities(searchQuery: string): Promise<any[]> {
       id: row.id,
       name: row.name,
       type: row.type || 'Facility',
-      location: row.address || 'Location not specified',
+      location: row.street_address || row.address || 'Location not specified',
+      streetAddress: row.street_address,
+      city: row.city,
+      state: row.state,
+      zipCode: row.zip_code,
       description: row.description || '',
+      logoUrl: row.logo_url,
       courts: parseInt(row.courts) || 0,
       members: parseInt(row.members) || 0,
       requiresApproval: row.type === 'Private Club' // Private clubs require approval
@@ -129,11 +146,16 @@ export async function getFacilityById(facilityId: string): Promise<Facility | nu
         name,
         type,
         address,
+        street_address as "streetAddress",
+        city,
+        state,
+        zip_code as "zipCode",
         phone,
         email,
         description,
         amenities,
         operating_hours as "operatingHours",
+        logo_url as "logoUrl",
         created_at as "createdAt",
         updated_at as "updatedAt"
       FROM facilities

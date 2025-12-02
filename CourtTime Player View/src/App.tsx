@@ -21,9 +21,8 @@ import { CourtManagement } from './components/admin/CourtManagement';
 import { BookingManagement } from './components/admin/BookingManagement';
 import { AdminBooking } from './components/admin/AdminBooking';
 import { MemberManagement } from './components/admin/MemberManagement';
-import { Analytics } from './components/admin/Analytics';
 
-type Screen = 'login' | 'court-calendar' | 'player-dashboard' | 'quick-reservation' | 'profile' | 'user-registration' | 'facility-registration' | 'club-info' | 'bulletin-board' | 'hitting-partner' | 'messages' | 'forgot-password' | 'reset-password' | 'admin-dashboard' | 'facility-management' | 'court-management' | 'booking-management' | 'admin-booking' | 'member-management' | 'analytics';
+type Screen = 'login' | 'court-calendar' | 'player-dashboard' | 'quick-reservation' | 'profile' | 'user-registration' | 'facility-registration' | 'club-info' | 'bulletin-board' | 'hitting-partner' | 'messages' | 'forgot-password' | 'reset-password' | 'admin-dashboard' | 'facility-management' | 'court-management' | 'booking-management' | 'admin-booking' | 'member-management';
 
 function AppContent() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('login');
@@ -198,11 +197,6 @@ function AppContent() {
     setCurrentScreen('member-management');
   };
 
-  const navigateToAnalytics = () => {
-    console.log('Navigating to analytics');
-    setCurrentScreen('analytics');
-  };
-
   return (
     <div className="min-h-screen bg-background">
 
@@ -257,7 +251,6 @@ function AppContent() {
           onNavigateToBookingManagement={navigateToBookingManagement}
           onNavigateToAdminBooking={navigateToAdminBooking}
           onNavigateToMemberManagement={navigateToMemberManagement}
-          onNavigateToAnalytics={navigateToAnalytics}
           onLogout={handleLogout}
           selectedFacilityId={selectedFacilityId}
           onFacilityChange={handleFacilityChange}
@@ -282,7 +275,6 @@ function AppContent() {
           onNavigateToBookingManagement={navigateToBookingManagement}
           onNavigateToAdminBooking={navigateToAdminBooking}
           onNavigateToMemberManagement={navigateToMemberManagement}
-          onNavigateToAnalytics={navigateToAnalytics}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
         />
@@ -305,7 +297,6 @@ function AppContent() {
           onNavigateToBookingManagement={navigateToBookingManagement}
           onNavigateToAdminBooking={navigateToAdminBooking}
           onNavigateToMemberManagement={navigateToMemberManagement}
-          onNavigateToAnalytics={navigateToAnalytics}
           selectedFacilityId={selectedFacilityId}
           onFacilityChange={handleFacilityChange}
           sidebarCollapsed={sidebarCollapsed}
@@ -330,7 +321,6 @@ function AppContent() {
           onNavigateToBookingManagement={navigateToBookingManagement}
           onNavigateToAdminBooking={navigateToAdminBooking}
           onNavigateToMemberManagement={navigateToMemberManagement}
-          onNavigateToAnalytics={navigateToAnalytics}
           selectedFacilityId={selectedFacilityId}
           onFacilityChange={handleFacilityChange}
           sidebarCollapsed={sidebarCollapsed}
@@ -355,7 +345,6 @@ function AppContent() {
           onNavigateToBookingManagement={navigateToBookingManagement}
           onNavigateToAdminBooking={navigateToAdminBooking}
           onNavigateToMemberManagement={navigateToMemberManagement}
-          onNavigateToAnalytics={navigateToAnalytics}
           selectedFacilityId={selectedFacilityId}
           onFacilityChange={handleFacilityChange}
           sidebarCollapsed={sidebarCollapsed}
@@ -381,7 +370,6 @@ function AppContent() {
           onNavigateToBookingManagement={navigateToBookingManagement}
           onNavigateToAdminBooking={navigateToAdminBooking}
           onNavigateToMemberManagement={navigateToMemberManagement}
-          onNavigateToAnalytics={navigateToAnalytics}
           selectedFacilityId={selectedFacilityId}
           onFacilityChange={handleFacilityChange}
           sidebarCollapsed={sidebarCollapsed}
@@ -401,6 +389,12 @@ function AppContent() {
           onNavigateToClub={navigateToClub}
           onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToMessages={navigateToMessages}
+          onNavigateToAdminDashboard={navigateToAdminDashboard}
+          onNavigateToFacilityManagement={navigateToFacilityManagement}
+          onNavigateToCourtManagement={navigateToCourtManagement}
+          onNavigateToBookingManagement={navigateToBookingManagement}
+          onNavigateToAdminBooking={navigateToAdminBooking}
+          onNavigateToMemberManagement={navigateToMemberManagement}
           selectedFacilityId={selectedFacilityId}
           onFacilityChange={handleFacilityChange}
           sidebarCollapsed={sidebarCollapsed}
@@ -418,6 +412,13 @@ function AppContent() {
           onNavigateToClub={navigateToClub}
           onNavigateToBulletinBoard={navigateToBulletinBoard}
           onNavigateToHittingPartner={navigateToHittingPartner}
+          onNavigateToMessages={navigateToMessages}
+          onNavigateToAdminDashboard={navigateToAdminDashboard}
+          onNavigateToFacilityManagement={navigateToFacilityManagement}
+          onNavigateToCourtManagement={navigateToCourtManagement}
+          onNavigateToBookingManagement={navigateToBookingManagement}
+          onNavigateToAdminBooking={navigateToAdminBooking}
+          onNavigateToMemberManagement={navigateToMemberManagement}
           selectedFacilityId={selectedFacilityId}
           onFacilityChange={handleFacilityChange}
           sidebarCollapsed={sidebarCollapsed}
@@ -443,7 +444,6 @@ function AppContent() {
           onNavigateToBookingManagement={navigateToBookingManagement}
           onNavigateToAdminBooking={navigateToAdminBooking}
           onNavigateToMemberManagement={navigateToMemberManagement}
-          onNavigateToAnalytics={navigateToAnalytics}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
         />
@@ -465,7 +465,6 @@ function AppContent() {
           onNavigateToBookingManagement={navigateToBookingManagement}
           onNavigateToAdminBooking={navigateToAdminBooking}
           onNavigateToMemberManagement={navigateToMemberManagement}
-          onNavigateToAnalytics={navigateToAnalytics}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
         />
@@ -487,7 +486,6 @@ function AppContent() {
           onNavigateToBookingManagement={navigateToBookingManagement}
           onNavigateToAdminBooking={navigateToAdminBooking}
           onNavigateToMemberManagement={navigateToMemberManagement}
-          onNavigateToAnalytics={navigateToAnalytics}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
         />
@@ -509,7 +507,6 @@ function AppContent() {
           onNavigateToBookingManagement={navigateToBookingManagement}
           onNavigateToAdminBooking={navigateToAdminBooking}
           onNavigateToMemberManagement={navigateToMemberManagement}
-          onNavigateToAnalytics={navigateToAnalytics}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
         />
@@ -531,7 +528,6 @@ function AppContent() {
           onNavigateToBookingManagement={navigateToBookingManagement}
           onNavigateToAdminBooking={navigateToAdminBooking}
           onNavigateToMemberManagement={navigateToMemberManagement}
-          onNavigateToAnalytics={navigateToAnalytics}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
         />
@@ -553,33 +549,11 @@ function AppContent() {
           onNavigateToBookingManagement={navigateToBookingManagement}
           onNavigateToAdminBooking={navigateToAdminBooking}
           onNavigateToMemberManagement={navigateToMemberManagement}
-          onNavigateToAnalytics={navigateToAnalytics}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
         />
       )}
 
-      {currentScreen === 'analytics' && (
-        <Analytics
-          onBack={navigateBack}
-          onLogout={handleLogout}
-          onNavigateToProfile={navigateToProfile}
-          onNavigateToPlayerDashboard={navigateToPlayerDashboard}
-          onNavigateToCalendar={navigateToCourtCalendar}
-          onNavigateToClub={navigateToClub}
-          onNavigateToHittingPartner={navigateToHittingPartner}
-          onNavigateToBulletinBoard={navigateToBulletinBoard}
-          onNavigateToAdminDashboard={navigateToAdminDashboard}
-          onNavigateToFacilityManagement={navigateToFacilityManagement}
-          onNavigateToCourtManagement={navigateToCourtManagement}
-          onNavigateToBookingManagement={navigateToBookingManagement}
-          onNavigateToAdminBooking={navigateToAdminBooking}
-          onNavigateToMemberManagement={navigateToMemberManagement}
-          onNavigateToAnalytics={navigateToAnalytics}
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={toggleSidebar}
-        />
-      )}
 
       <Toaster />
     </div>

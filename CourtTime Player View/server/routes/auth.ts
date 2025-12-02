@@ -27,6 +27,7 @@ router.post('/register', async (req, res, next) => {
       zipCode,
       skillLevel,
       bio,
+      profilePicture,
       notificationPreferences
     } = req.body;
 
@@ -52,6 +53,7 @@ router.post('/register', async (req, res, next) => {
         zipCode,
         skillLevel,
         bio,
+        profilePicture,
         notificationPreferences
       }
     );

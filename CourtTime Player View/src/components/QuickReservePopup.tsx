@@ -155,9 +155,9 @@ export function QuickReservePopup({
     fetchBookings();
   }, [isOpen, selectedFacility, selectedDate]);
 
-  // Auto-select first available court and find soonest available time when court type changes
+  // Auto-select first available court and find soonest available time when court type changes or date changes
   useEffect(() => {
-    if (selectedCourtType && availableCourts.length > 0) {
+    if (selectedCourtType && availableCourts.length > 0 && selectedDate) {
       // Generate time slots for checking
       const generateTimeSlots = () => {
         const slots = [];
@@ -174,28 +174,37 @@ export function QuickReservePopup({
 
       const allTimeSlots = generateTimeSlots();
 
-      // Find the current time index
+      // Determine starting time index based on selected date
       const now = new Date();
-      const currentMinutes = now.getMinutes();
-      const roundedMinutes = Math.ceil(currentMinutes / 15) * 15;
-      const nextTime = new Date(now);
-      if (roundedMinutes >= 60) {
-        nextTime.setHours(now.getHours() + 1, 0, 0, 0);
-      } else {
-        nextTime.setMinutes(roundedMinutes, 0, 0);
+      const todayStr = now.toISOString().split('T')[0];
+      const isToday = selectedDate === todayStr;
+
+      let startTimeIndex = 0; // Start from beginning for future dates
+
+      if (isToday) {
+        // For today, start from current time rounded up
+        const currentMinutes = now.getMinutes();
+        const roundedMinutes = Math.ceil(currentMinutes / 15) * 15;
+        const nextTime = new Date(now);
+        if (roundedMinutes >= 60) {
+          nextTime.setHours(now.getHours() + 1, 0, 0, 0);
+        } else {
+          nextTime.setMinutes(roundedMinutes, 0, 0);
+        }
+        let hours = nextTime.getHours();
+        const minutes = nextTime.getMinutes();
+        const period = hours >= 12 ? 'PM' : 'AM';
+        hours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+        const currentTimeSlot = `${hours}:${minutes.toString().padStart(2, '0')} ${period}`;
+        startTimeIndex = allTimeSlots.indexOf(currentTimeSlot);
+        if (startTimeIndex === -1) startTimeIndex = 0;
       }
-      let hours = nextTime.getHours();
-      const minutes = nextTime.getMinutes();
-      const period = hours >= 12 ? 'PM' : 'AM';
-      hours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
-      const currentTimeSlot = `${hours}:${minutes.toString().padStart(2, '0')} ${period}`;
-      const currentTimeIndex = allTimeSlots.indexOf(currentTimeSlot);
 
       // Find the SOONEST available time across ALL courts of this type
       let soonestSlot: { court: any; time: string; timeIndex: number } | null = null;
 
-      // Check each time slot starting from current time
-      for (let i = currentTimeIndex; i < allTimeSlots.length && i >= 0; i++) {
+      // Check each time slot starting from the appropriate time
+      for (let i = startTimeIndex; i < allTimeSlots.length; i++) {
         const timeSlot = allTimeSlots[i];
 
         // Check if ANY court is available at this time
@@ -218,43 +227,55 @@ export function QuickReservePopup({
         setSelectedCourtId(soonestSlot.court.id);
         setSelectedCourt(soonestSlot.court.name);
         setSelectedTime(soonestSlot.time);
-
-        // Set to today's date
-        const dateStr = now.toISOString().split('T')[0];
-        setSelectedDate(dateStr);
       } else {
-        // No available slots found, just select first court and current time
+        // No available slots found, just select first court and first available time
         const firstCourt = availableCourts[0];
         setSelectedCourtId(firstCourt.id);
         setSelectedCourt(firstCourt.name);
-        setSelectedTime(currentTimeSlot);
-        const dateStr = now.toISOString().split('T')[0];
-        setSelectedDate(dateStr);
+        setSelectedTime(allTimeSlots[startTimeIndex] || allTimeSlots[0]);
       }
-    } else {
+    } else if (!selectedCourtType) {
       setSelectedCourt('');
       setSelectedCourtId('');
     }
-  }, [selectedCourtType, availableCourts, existingBookings]);
+  }, [selectedCourtType, availableCourts, existingBookings, selectedDate]);
 
   // Determine if facility has both types of courts
   const hasTennisCourts = allCourts.some(court => court.type === 'tennis');
   const hasPickleballCourts = allCourts.some(court => court.type === 'pickleball');
   const hasMultipleCourtTypes = hasTennisCourts && hasPickleballCourts;
 
-  // Generate time slots (15-minute intervals)
+  // Generate time slots (15-minute intervals), filtering out fully booked times
   const timeSlots = React.useMemo(() => {
-    const slots = [];
+    const allSlots = [];
     for (let hour = 6; hour <= 21; hour++) {
       for (let minute = 0; minute < 60; minute += 15) {
         const period = hour >= 12 ? 'PM' : 'AM';
         const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
         const displayMinute = minute.toString().padStart(2, '0');
-        slots.push(`${displayHour}:${displayMinute} ${period}`);
+        allSlots.push(`${displayHour}:${displayMinute} ${period}`);
       }
     }
-    return slots;
-  }, []);
+
+    // If no court type selected, return all slots
+    if (!selectedCourtType || availableCourts.length === 0) {
+      return allSlots;
+    }
+
+    // Filter out times where ALL courts of this type are booked
+    return allSlots.filter(timeSlot => {
+      // Check if at least one court is available at this time
+      for (const court of availableCourts) {
+        const courtBookings = existingBookings[court.name] || new Set();
+        if (!courtBookings.has(timeSlot)) {
+          // At least one court is available at this time
+          return true;
+        }
+      }
+      // All courts are booked at this time
+      return false;
+    });
+  }, [selectedCourtType, availableCourts, existingBookings]);
 
   const toggleRecurringDay = (day: string) => {
     setRecurringDays(prev =>

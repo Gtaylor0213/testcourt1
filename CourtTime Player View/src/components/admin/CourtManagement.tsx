@@ -27,7 +27,6 @@ interface CourtManagementProps {
   onNavigateToBookingManagement?: () => void;
   onNavigateToAdminBooking?: () => void;
   onNavigateToMemberManagement?: () => void;
-  onNavigateToAnalytics?: () => void;
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
 }
@@ -57,7 +56,6 @@ export function CourtManagement({
   onNavigateToBookingManagement = () => {},
   onNavigateToAdminBooking = () => {},
   onNavigateToMemberManagement = () => {},
-  onNavigateToAnalytics = () => {},
   sidebarCollapsed = false,
   onToggleSidebar
 }: CourtManagementProps) {
@@ -208,8 +206,7 @@ export function CourtManagement({
         onNavigateToBookingManagement={onNavigateToBookingManagement}
         onNavigateToAdminBooking={onNavigateToAdminBooking}
         onNavigateToMemberManagement={onNavigateToMemberManagement}
-        onNavigateToAnalytics={onNavigateToAnalytics}
-        onLogout={onLogout}
+                onLogout={onLogout}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={onToggleSidebar}
         currentPage="court-management"
@@ -218,7 +215,7 @@ export function CourtManagement({
       <div className={`${sidebarCollapsed ? 'ml-16' : 'ml-64'} transition-all duration-300 ease-in-out p-8`}>
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Court Management</h1>
+            <h1 className="text-2xl font-medium text-gray-900">Court Management</h1>
             <Button onClick={handleAddNew} disabled={editingCourt !== null || isAddingNew}>
               <Plus className="h-4 w-4 mr-2" />
               Add New Court

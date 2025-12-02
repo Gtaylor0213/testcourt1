@@ -21,6 +21,12 @@ interface PlayerDashboardProps {
   onNavigateToHittingPartner?: () => void;
   onNavigateToMessages?: () => void;
   onNavigateToSettings?: () => void;
+  onNavigateToAdminDashboard?: () => void;
+  onNavigateToFacilityManagement?: () => void;
+  onNavigateToCourtManagement?: () => void;
+  onNavigateToBookingManagement?: () => void;
+  onNavigateToAdminBooking?: () => void;
+  onNavigateToMemberManagement?: () => void;
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
 }
@@ -35,6 +41,12 @@ export function PlayerDashboard({
   onNavigateToHittingPartner = () => {},
   onNavigateToMessages = () => {},
   onNavigateToSettings = () => {},
+  onNavigateToAdminDashboard = () => {},
+  onNavigateToFacilityManagement = () => {},
+  onNavigateToCourtManagement = () => {},
+  onNavigateToBookingManagement = () => {},
+  onNavigateToAdminBooking = () => {},
+  onNavigateToMemberManagement = () => {},
   sidebarCollapsed = false,
   onToggleSidebar
 }: PlayerDashboardProps) {
@@ -185,7 +197,13 @@ export function PlayerDashboard({
         onNavigateToBulletinBoard={onNavigateToBulletinBoard}
         onNavigateToHittingPartner={onNavigateToHittingPartner}
         onNavigateToMessages={onNavigateToMessages}
-        onLogout={onLogout}
+        onNavigateToAdminDashboard={onNavigateToAdminDashboard}
+        onNavigateToFacilityManagement={onNavigateToFacilityManagement}
+        onNavigateToCourtManagement={onNavigateToCourtManagement}
+        onNavigateToBookingManagement={onNavigateToBookingManagement}
+        onNavigateToAdminBooking={onNavigateToAdminBooking}
+        onNavigateToMemberManagement={onNavigateToMemberManagement}
+                onLogout={onLogout}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={onToggleSidebar}
         currentPage="player-dashboard"

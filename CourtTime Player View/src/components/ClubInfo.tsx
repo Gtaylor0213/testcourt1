@@ -20,6 +20,12 @@ interface ClubInfoProps {
   onNavigateToHittingPartner?: () => void;
   onNavigateToMessages?: () => void;
   onNavigateToBulletinBoard?: (clubId: string, clubName: string) => void;
+  onNavigateToAdminDashboard?: () => void;
+  onNavigateToFacilityManagement?: () => void;
+  onNavigateToCourtManagement?: () => void;
+  onNavigateToBookingManagement?: () => void;
+  onNavigateToAdminBooking?: () => void;
+  onNavigateToMemberManagement?: () => void;
   selectedFacilityId?: string;
   onFacilityChange?: (facilityId: string) => void;
   sidebarCollapsed: boolean;
@@ -30,22 +36,29 @@ interface ClubInfoProps {
 interface FacilityData {
   id: string;
   name: string;
+  type: string;
   description: string;
-  address: string;
+  streetAddress: string;
+  address?: string; // Legacy field
   city: string;
   state: string;
   zipCode: string;
   phone: string;
   email: string;
-  website: string;
+  website?: string;
   operatingHours: any;
+  amenities: string[];
+  logoUrl?: string;
   memberCount?: number;
   courts: {
     id: string;
     name: string;
+    courtNumber: number;
     courtType: string;
     surfaceType: string;
     isIndoor: boolean;
+    hasLights: boolean;
+    status: string;
   }[];
 }
 
@@ -59,6 +72,12 @@ export function ClubInfo({
   onNavigateToHittingPartner = () => {},
   onNavigateToMessages = () => {},
   onNavigateToBulletinBoard = () => {},
+  onNavigateToAdminDashboard = () => {},
+  onNavigateToFacilityManagement = () => {},
+  onNavigateToCourtManagement = () => {},
+  onNavigateToBookingManagement = () => {},
+  onNavigateToAdminBooking = () => {},
+  onNavigateToMemberManagement = () => {},
   selectedFacilityId,
   onFacilityChange,
   sidebarCollapsed,
@@ -98,12 +117,55 @@ export function ClubInfo({
 
       const facilityResponse = await facilitiesApi.getById(clubId);
       if (facilityResponse.success && facilityResponse.data?.facility) {
-        setFacility(facilityResponse.data.facility);
+        const rawFacility = facilityResponse.data.facility;
+
+        // Parse address - handle both new separate fields and legacy single address field
+        let streetAddress = rawFacility.streetAddress || '';
+        let city = rawFacility.city || '';
+        let state = rawFacility.state || '';
+        let zipCode = rawFacility.zipCode || '';
+
+        // If address is stored as a single field, try to parse it
+        if (!streetAddress && rawFacility.address) {
+          const addressParts = rawFacility.address.split(',').map((p: string) => p.trim());
+          if (addressParts.length >= 1) streetAddress = addressParts[0];
+          if (addressParts.length >= 2) city = addressParts[1];
+          if (addressParts.length >= 3) {
+            const stateZip = addressParts[2].split(' ').filter((p: string) => p);
+            if (stateZip.length >= 1) state = stateZip[0];
+            if (stateZip.length >= 2) zipCode = stateZip[1];
+          }
+        }
+
+        const facilityData: FacilityData = {
+          id: rawFacility.id,
+          name: rawFacility.name || '',
+          type: rawFacility.type || 'Tennis Facility',
+          description: rawFacility.description || '',
+          streetAddress,
+          city,
+          state,
+          zipCode,
+          phone: rawFacility.phone || '',
+          email: rawFacility.email || '',
+          website: rawFacility.website || '',
+          operatingHours: rawFacility.operatingHours || {},
+          amenities: rawFacility.amenities || [],
+          logoUrl: rawFacility.logoUrl || '',
+          memberCount: rawFacility.memberCount,
+          courts: [],
+        };
+
+        setFacility(facilityData);
 
         // Load courts for this facility
         const courtsResponse = await facilitiesApi.getCourts(clubId);
         if (courtsResponse.success && courtsResponse.data?.courts) {
-          setFacility(prev => prev ? { ...prev, courts: courtsResponse.data.courts } : null);
+          // Filter to only show active courts
+          const activeCourts = courtsResponse.data.courts.filter(
+            (court: any) => court.status === 'active' || !court.status
+          );
+          setFacility(prev => prev ? { ...prev, courts: activeCourts } : null);
         }
       }
     } catch (error) {
@@ -148,7 +210,13 @@ export function ClubInfo({
           onNavigateToBulletinBoard={onNavigateToBulletinBoard}
           onNavigateToHittingPartner={onNavigateToHittingPartner}
           onNavigateToMessages={onNavigateToMessages}
-          onLogout={onLogout}
+          onNavigateToAdminDashboard={onNavigateToAdminDashboard}
+          onNavigateToFacilityManagement={onNavigateToFacilityManagement}
+          onNavigateToCourtManagement={onNavigateToCourtManagement}
+          onNavigateToBookingManagement={onNavigateToBookingManagement}
+          onNavigateToAdminBooking={onNavigateToAdminBooking}
+          onNavigateToMemberManagement={onNavigateToMemberManagement}
+                    onLogout={onLogout}
           isCollapsed={sidebarCollapsed}
           onToggleCollapse={onToggleSidebar}
           currentPage="club-info"
@@ -183,12 +251,18 @@ export function ClubInfo({
         onNavigateToBulletinBoard={onNavigateToBulletinBoard}
         onNavigateToHittingPartner={onNavigateToHittingPartner}
         onNavigateToMessages={onNavigateToMessages}
-        onLogout={onLogout}
+        onNavigateToAdminDashboard={onNavigateToAdminDashboard}
+        onNavigateToFacilityManagement={onNavigateToFacilityManagement}
+        onNavigateToCourtManagement={onNavigateToCourtManagement}
+        onNavigateToBookingManagement={onNavigateToBookingManagement}
+        onNavigateToAdminBooking={onNavigateToAdminBooking}
+        onNavigateToMemberManagement={onNavigateToMemberManagement}
+                onLogout={onLogout}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={onToggleSidebar}
         currentPage="club-info"
       />
-      
+
       <div className={`flex-1 ${sidebarCollapsed ? 'ml-16' : 'ml-64'} transition-all duration-300 ease-in-out`}>
         {/* Header */}
         <div className="bg-white border-b border-gray-200 p-6">
@@ -229,20 +303,29 @@ export function ClubInfo({
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="md:w-1/3">
-                  <div className="w-full h-48 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center text-white">
-                    <div className="text-center">
-                      <Users className="h-16 w-16 mx-auto mb-2" />
-                      <p className="font-medium">{facility.name}</p>
+                  {facility.logoUrl ? (
+                    <img
+                      src={facility.logoUrl}
+                      alt={`${facility.name} logo`}
+                      className="w-full h-48 object-cover rounded-lg border border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-full h-48 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center text-white">
+                      <div className="text-center">
+                        <Users className="h-16 w-16 mx-auto mb-2" />
+                        <p className="font-medium">{facility.name}</p>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
                 <div className="md:w-2/3">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <h1 className="mb-2">{facility.name}</h1>
+                      <h1 className="text-2xl font-semibold mb-2">{facility.name}</h1>
                       <div className="flex items-center gap-2 mb-3">
+                        <Badge variant="secondary">{facility.type}</Badge>
                         {facility.memberCount && (
-                          <Badge variant="secondary">
+                          <Badge variant="outline">
                             <Users className="h-3 w-3 mr-1" />
                             {facility.memberCount} members
                           </Badge>
@@ -284,89 +367,113 @@ export function ClubInfo({
                 <CardTitle>Contact Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center">
-                  <MapPin className="h-4 w-4 text-gray-400 mr-3" />
-                  <div>
-                    <p>{facility.address}</p>
-                    <p className="text-sm text-gray-600">{facility.city}, {facility.state} {facility.zipCode}</p>
+                {(facility.streetAddress || facility.city) && (
+                  <div className="flex items-start">
+                    <MapPin className="h-4 w-4 text-gray-400 mr-3 mt-1" />
+                    <div>
+                      {facility.streetAddress && <p>{facility.streetAddress}</p>}
+                      <p className="text-sm text-gray-600">
+                        {[facility.city, facility.state].filter(Boolean).join(', ')}
+                        {facility.zipCode && ` ${facility.zipCode}`}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
                 {facility.phone && (
                   <div className="flex items-center">
                     <Phone className="h-4 w-4 text-gray-400 mr-3" />
-                    <div>
-                      <p>{facility.phone}</p>
-                    </div>
+                    <a href={`tel:${facility.phone}`} className="text-blue-600 hover:underline">
+                      {facility.phone}
+                    </a>
                   </div>
                 )}
                 {facility.email && (
                   <div className="flex items-center">
                     <Mail className="h-4 w-4 text-gray-400 mr-3" />
-                    <div>
-                      <p>{facility.email}</p>
-                    </div>
+                    <a href={`mailto:${facility.email}`} className="text-blue-600 hover:underline">
+                      {facility.email}
+                    </a>
                   </div>
                 )}
                 {facility.website && (
                   <div className="flex items-center">
                     <Globe className="h-4 w-4 text-gray-400 mr-3" />
-                    <div>
-                      <p>{facility.website}</p>
-                    </div>
-                  </div>
-                )}
-                {facility.operatingHours && (
-                  <div className="flex items-start">
-                    <Clock className="h-4 w-4 text-gray-400 mr-3 mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-2">Operating Hours</p>
-                      {typeof facility.operatingHours === 'object' ? (
-                        <div className="space-y-1">
-                          {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
-                            facility.operatingHours[day] && (
-                              <div key={day} className="text-sm">
-                                <span className="font-medium capitalize">{day}:</span> {facility.operatingHours[day]}
-                              </div>
-                            )
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm">{facility.operatingHours}</p>
-                      )}
-                    </div>
+                    <a href={facility.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      {facility.website}
+                    </a>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Courts & Facilities */}
+            {/* Operating Hours */}
             <Card>
               <CardHeader>
-                <CardTitle>Courts & Facilities</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Operating Hours
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="mb-3">Available Courts</h4>
-                    {facility.courts && facility.courts.length > 0 ? (
-                      <div className="space-y-2">
-                        {facility.courts.map((court) => (
-                          <div key={court.id} className="flex justify-between items-center p-2 border border-gray-200 rounded">
-                            <div>
-                              <p className="font-medium">{court.name}</p>
-                              <p className="text-sm text-gray-600">
-                                {court.surfaceType} • {court.isIndoor ? 'Indoor' : 'Outdoor'}
-                              </p>
-                            </div>
-                            <Badge variant="outline">{court.courtType}</Badge>
-                          </div>
-                        ))}
+                {facility.operatingHours && typeof facility.operatingHours === 'object' && Object.keys(facility.operatingHours).length > 0 ? (
+                  <div className="grid grid-cols-1 gap-2">
+                    {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
+                      <div key={day} className="flex justify-between py-1 border-b border-gray-100 last:border-0">
+                        <span className="font-medium capitalize text-gray-700">{day}</span>
+                        <span className="text-gray-600">{facility.operatingHours[day] || 'Closed'}</span>
                       </div>
-                    ) : (
-                      <p className="text-sm text-gray-500">No courts information available</p>
-                    )}
+                    ))}
                   </div>
-                </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">Hours not available</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Courts */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Available Courts</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {facility.courts && facility.courts.length > 0 ? (
+                  <div className="space-y-3">
+                    {facility.courts.map((court) => (
+                      <div key={court.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium">{court.name}</p>
+                          <p className="text-sm text-gray-600">
+                            {court.surfaceType} • {court.isIndoor ? 'Indoor' : 'Outdoor'}
+                            {court.hasLights && ' • Lights'}
+                          </p>
+                        </div>
+                        <Badge variant="outline">{court.courtType}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No courts information available</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Amenities */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Amenities</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {facility.amenities && facility.amenities.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {facility.amenities.map((amenity, index) => (
+                      <Badge key={index} variant="secondary" className="px-3 py-1">
+                        {amenity}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No amenities listed</p>
+                )}
               </CardContent>
             </Card>
           </div>

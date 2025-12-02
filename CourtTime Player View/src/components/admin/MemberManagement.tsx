@@ -27,7 +27,6 @@ interface MemberManagementProps {
   onNavigateToBookingManagement?: () => void;
   onNavigateToAdminBooking?: () => void;
   onNavigateToMemberManagement?: () => void;
-  onNavigateToAnalytics?: () => void;
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
   facilityId?: string;
@@ -61,7 +60,6 @@ export function MemberManagement({
   onNavigateToBookingManagement = () => {},
   onNavigateToAdminBooking = () => {},
   onNavigateToMemberManagement = () => {},
-  onNavigateToAnalytics = () => {},
   sidebarCollapsed = false,
   onToggleSidebar,
   facilityId
@@ -287,8 +285,7 @@ export function MemberManagement({
         onNavigateToBookingManagement={onNavigateToBookingManagement}
         onNavigateToAdminBooking={onNavigateToAdminBooking}
         onNavigateToMemberManagement={onNavigateToMemberManagement}
-        onNavigateToAnalytics={onNavigateToAnalytics}
-        onLogout={onLogout}
+                onLogout={onLogout}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={onToggleSidebar}
         currentPage="member-management"
@@ -298,7 +295,7 @@ export function MemberManagement({
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Member Management</h1>
+            <h1 className="text-2xl font-medium text-gray-900">Member Management</h1>
             <div className="flex gap-2">
               <Button onClick={() => setShowAddressDialog(true)} variant="outline">
                 <Home className="h-4 w-4 mr-2" />
@@ -388,43 +385,34 @@ export function MemberManagement({
                     filteredMembers.map((member) => (
                       <div
                         key={member.userId}
-                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                        className="flex items-center justify-between px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
                       >
-                        <div className="flex items-center gap-3 flex-1">
-                          <Avatar className="h-10 w-10">
-                            <AvatarFallback className="text-sm">{getInitials(member.fullName)}</AvatarFallback>
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <Avatar className="h-8 w-8 flex-shrink-0">
+                            <AvatarFallback className="text-xs">{getInitials(member.fullName)}</AvatarFallback>
                           </Avatar>
-                          <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-3 items-center">
-                            <div className="col-span-2">
+                          <div className="flex items-center gap-6 flex-1 min-w-0">
+                            <div className="min-w-[180px]">
                               <div className="font-medium text-sm flex items-center gap-2">
-                                {member.fullName}
+                                <span className="truncate">{member.fullName}</span>
                                 {member.isFacilityAdmin && (
-                                  <Badge variant="outline" className="text-xs text-blue-600 border-blue-600 py-0">
+                                  <Badge variant="outline" className="text-[10px] text-blue-600 border-blue-600 px-1.5 py-0">
                                     Admin
                                   </Badge>
                                 )}
                               </div>
-                              <div className="text-xs text-gray-500">{member.email}</div>
+                              <div className="text-xs text-gray-500 truncate">{member.email}</div>
                             </div>
-                            <div className="text-center">
-                              <div className="text-xs font-medium">{member.membershipType}</div>
-                              <div className="text-xs text-gray-500">Type</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-xs font-medium">{member.skillLevel || 'N/A'}</div>
-                              <div className="text-xs text-gray-500">Skill</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-xs font-medium">
+                            <div className="hidden md:flex items-center gap-6 text-xs text-gray-600">
+                              <span className="w-16 text-center font-medium">{member.membershipType}</span>
+                              <span className="w-20 text-center">{member.skillLevel || '—'}</span>
+                              <span className="w-20 text-center">
                                 {new Date(member.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
-                              </div>
-                              <div className="text-xs text-gray-500">Joined</div>
+                              </span>
                             </div>
-                            <div className="text-center">
-                              <Badge className={`${getStatusColor(member.status)} text-xs py-0`}>
-                                {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
-                              </Badge>
-                            </div>
+                            <Badge className={`${getStatusColor(member.status)} text-xs px-2 py-0`}>
+                              {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
+                            </Badge>
                           </div>
                         </div>
                         <div className="flex gap-1 ml-3">
@@ -433,10 +421,10 @@ export function MemberManagement({
                               variant="outline"
                               size="sm"
                               onClick={() => handleUpdateStatus(member.userId, 'active')}
-                              className="text-green-600 hover:text-green-700 h-8 w-8 p-0"
+                              className="text-green-600 hover:text-green-700 h-7 w-7 p-0"
                               title="Approve member"
                             >
-                              <CheckCircle className="h-4 w-4" />
+                              <CheckCircle className="h-3.5 w-3.5" />
                             </Button>
                           )}
                           {member.status === 'active' && (
@@ -444,10 +432,10 @@ export function MemberManagement({
                               variant="outline"
                               size="sm"
                               onClick={() => handleUpdateStatus(member.userId, 'suspended')}
-                              className="text-orange-600 hover:text-orange-700 h-8 w-8 p-0"
+                              className="text-orange-600 hover:text-orange-700 h-7 w-7 p-0"
                               title="Suspend member"
                             >
-                              <XCircle className="h-4 w-4" />
+                              <XCircle className="h-3.5 w-3.5" />
                             </Button>
                           )}
                           {member.status === 'suspended' && (
@@ -455,29 +443,29 @@ export function MemberManagement({
                               variant="outline"
                               size="sm"
                               onClick={() => handleUpdateStatus(member.userId, 'active')}
-                              className="text-green-600 hover:text-green-700 h-8 w-8 p-0"
+                              className="text-green-600 hover:text-green-700 h-7 w-7 p-0"
                               title="Reactivate member"
                             >
-                              <CheckCircle className="h-4 w-4" />
+                              <CheckCircle className="h-3.5 w-3.5" />
                             </Button>
                           )}
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleToggleAdmin(member.userId, member.isFacilityAdmin)}
-                            className={`${member.isFacilityAdmin ? 'text-orange-600 hover:text-orange-700' : 'text-blue-600 hover:text-blue-700'} h-8 w-8 p-0`}
+                            className={`${member.isFacilityAdmin ? 'text-orange-600 hover:text-orange-700' : 'text-blue-600 hover:text-blue-700'} h-7 w-7 p-0`}
                             title={member.isFacilityAdmin ? 'Remove admin' : 'Make admin'}
                           >
-                            {member.isFacilityAdmin ? <ShieldOff className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+                            {member.isFacilityAdmin ? <ShieldOff className="h-3.5 w-3.5" /> : <Shield className="h-3.5 w-3.5" />}
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleRemoveMember(member.userId, member.fullName)}
-                            className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
+                            className="text-red-600 hover:text-red-700 h-7 w-7 p-0"
                             title="Remove member"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       </div>

@@ -24,6 +24,12 @@ interface FindHittingPartnerProps {
   onNavigateToClub?: (clubId: string) => void;
   onNavigateToBulletinBoard?: () => void;
   onNavigateToMessages?: (recipientId?: string) => void;
+  onNavigateToAdminDashboard?: () => void;
+  onNavigateToFacilityManagement?: () => void;
+  onNavigateToCourtManagement?: () => void;
+  onNavigateToBookingManagement?: () => void;
+  onNavigateToAdminBooking?: () => void;
+  onNavigateToMemberManagement?: () => void;
   selectedFacilityId?: string;
   onFacilityChange?: (facilityId: string) => void;
   sidebarCollapsed: boolean;
@@ -39,6 +45,12 @@ export function FindHittingPartner({
   onNavigateToClub = () => {},
   onNavigateToBulletinBoard = () => {},
   onNavigateToMessages = () => {},
+  onNavigateToAdminDashboard = () => {},
+  onNavigateToFacilityManagement = () => {},
+  onNavigateToCourtManagement = () => {},
+  onNavigateToBookingManagement = () => {},
+  onNavigateToAdminBooking = () => {},
+  onNavigateToMemberManagement = () => {},
   selectedFacilityId,
   onFacilityChange,
   sidebarCollapsed,
@@ -315,7 +327,13 @@ export function FindHittingPartner({
         onNavigateToBulletinBoard={onNavigateToBulletinBoard}
         onNavigateToHittingPartner={() => {}}
         onNavigateToMessages={onNavigateToMessages}
-        onLogout={onLogout}
+        onNavigateToAdminDashboard={onNavigateToAdminDashboard}
+        onNavigateToFacilityManagement={onNavigateToFacilityManagement}
+        onNavigateToCourtManagement={onNavigateToCourtManagement}
+        onNavigateToBookingManagement={onNavigateToBookingManagement}
+        onNavigateToAdminBooking={onNavigateToAdminBooking}
+        onNavigateToMemberManagement={onNavigateToMemberManagement}
+                onLogout={onLogout}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={onToggleSidebar}
         currentPage="hitting-partner"

@@ -28,7 +28,6 @@ interface CourtCalendarViewProps {
   onNavigateToBookingManagement?: () => void;
   onNavigateToAdminBooking?: () => void;
   onNavigateToMemberManagement?: () => void;
-  onNavigateToAnalytics?: () => void;
   onLogout: () => void;
   selectedFacilityId?: string;
   onFacilityChange?: (facilityId: string) => void;
@@ -50,7 +49,6 @@ export function CourtCalendarView({
   onNavigateToBookingManagement = () => {},
   onNavigateToAdminBooking = () => {},
   onNavigateToMemberManagement = () => {},
-  onNavigateToAnalytics = () => {},
   onLogout,
   selectedFacilityId = 'sunrise-valley',
   onFacilityChange,
@@ -425,7 +423,15 @@ export function CourtCalendarView({
     }
 
     // For today, filter out times before current time
-    return allTimeSlots.filter(timeSlot => !isPastTime(timeSlot));
+    const futureSlots = allTimeSlots.filter(timeSlot => !isPastTime(timeSlot));
+
+    // If all slots have passed (late night), show all slots anyway
+    // This prevents a blank calendar when viewing today after hours
+    if (futureSlots.length === 0) {
+      return allTimeSlots;
+    }
+
+    return futureSlots;
   }, [allTimeSlots, selectedDate, currentTime, isToday, isPastTime]);
 
   // Use fetched bookings from API
@@ -675,8 +681,7 @@ export function CourtCalendarView({
         onNavigateToBookingManagement={onNavigateToBookingManagement}
         onNavigateToAdminBooking={onNavigateToAdminBooking}
         onNavigateToMemberManagement={onNavigateToMemberManagement}
-        onNavigateToAnalytics={onNavigateToAnalytics}
-        onLogout={onLogout}
+                onLogout={onLogout}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={onToggleSidebar}
         currentPage="court-calendar"

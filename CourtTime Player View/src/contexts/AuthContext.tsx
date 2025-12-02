@@ -12,6 +12,8 @@ export interface User {
   userType: 'player' | 'admin';
   memberFacilities?: string[]; // Array of facility IDs user belongs to
   profileImageUrl?: string; // Profile image (base64 or URL)
+  skillLevel?: string;
+  bio?: string;
   preferences?: {
     notifications: boolean;
     timezone: string;
@@ -28,6 +30,7 @@ interface RegistrationData {
   zipCode?: string;
   skillLevel?: string;
   bio?: string;
+  profilePicture?: string;
   notificationPreferences?: {
     emailBookingConfirmations?: boolean;
     smsReminders?: boolean;
@@ -197,6 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         zipCode: additionalData?.zipCode,
         skillLevel: additionalData?.skillLevel,
         bio: additionalData?.bio,
+        profilePicture: additionalData?.profilePicture,
         notificationPreferences: additionalData?.notificationPreferences
       });
 

@@ -365,12 +365,17 @@ export const adminApi = {
   updateFacility: async (facilityId: string, data: {
     name?: string;
     type?: string;
-    address?: string;
+    streetAddress?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    address?: string; // Legacy field
     phone?: string;
     email?: string;
     description?: string;
     amenities?: string[];
     operatingHours?: any;
+    logoUrl?: string;
   }) => {
     return apiRequest(`/api/admin/facilities/${facilityId}`, {
       method: 'PATCH',

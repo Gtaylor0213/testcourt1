@@ -3,7 +3,10 @@
  * Frontend utility for calling backend API
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3003';
+// In production, use empty string for same-origin API calls
+// In development, fallback to localhost:3001
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD ? '' : 'http://localhost:3001');
 
 interface ApiResponse<T = any> {
   success: boolean;

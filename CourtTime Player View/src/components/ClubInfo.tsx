@@ -177,9 +177,9 @@ export function ClubInfo({
         // Load courts for this facility
         const courtsResponse = await facilitiesApi.getCourts(clubId);
         if (courtsResponse.success && courtsResponse.data?.courts) {
-          // Filter to only show active courts
+          // Filter to only show available/active courts (exclude maintenance/closed)
           const activeCourts = courtsResponse.data.courts.filter(
-            (court: any) => court.status === 'active' || !court.status
+            (court: any) => court.status === 'active' || court.status === 'available' || !court.status
           );
           setFacility(prev => prev ? { ...prev, courts: activeCourts } : null);
         }

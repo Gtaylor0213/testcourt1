@@ -21,6 +21,7 @@ import { CourtManagement } from './components/admin/CourtManagement';
 import { BookingManagement } from './components/admin/BookingManagement';
 import { AdminBooking } from './components/admin/AdminBooking';
 import { MemberManagement } from './components/admin/MemberManagement';
+import { DeveloperConsole } from './components/developer';
 
 type Screen = 'login' | 'court-calendar' | 'player-dashboard' | 'quick-reservation' | 'profile' | 'user-registration' | 'facility-registration' | 'club-info' | 'bulletin-board' | 'hitting-partner' | 'messages' | 'forgot-password' | 'reset-password' | 'admin-dashboard' | 'facility-management' | 'court-management' | 'booking-management' | 'admin-booking' | 'member-management';
 
@@ -561,6 +562,14 @@ function AppContent() {
 }
 
 export default function App() {
+  // Check if we're on the developer route
+  const isDeveloperRoute = window.location.pathname.startsWith('/developer');
+
+  // Render developer console separately (bypasses auth)
+  if (isDeveloperRoute) {
+    return <DeveloperConsole />;
+  }
+
   return (
     <AuthProvider>
       <NotificationProvider>

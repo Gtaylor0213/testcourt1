@@ -219,16 +219,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         notificationPreferences: additionalData?.notificationPreferences
       });
 
-      if (result.success && result.data) {
-        const token = 'token-' + result.data.user.id;
-        setUser(result.data.user);
+      if (result.success && result.data && result.data.user) {
+        const user = result.data.user;
+        const token = 'token-' + user.id;
+        setUser(user);
         setAccessToken(token);
         // Save to localStorage
-        localStorage.setItem('auth_user', JSON.stringify(result.data.user));
+        localStorage.setItem('auth_user', JSON.stringify(user));
         localStorage.setItem('auth_token', token);
-        toast.success('Registration successful!');
+        console.log('Registration successful, user set:', user.id);
         return true;
       } else {
+        console.error('Registration response missing user:', result);
         toast.error(result.error || 'Registration failed');
         return false;
       }

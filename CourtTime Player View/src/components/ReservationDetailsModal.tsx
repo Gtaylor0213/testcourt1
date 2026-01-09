@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Calendar, Clock, MapPin, User, FileText, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, FileText, AlertCircle, Tag } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { getBookingTypeBadgeColor, getBookingTypeLabel } from '../constants/bookingTypes';
 
 interface ReservationDetails {
   id: string;
@@ -125,6 +126,16 @@ export function ReservationDetailsModal({
                 {reservation.status.charAt(0).toUpperCase() + reservation.status.slice(1)}
               </Badge>
             </div>
+
+            {/* Booking Type */}
+            {reservation.bookingType && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-600">Type</span>
+                <Badge className={getBookingTypeBadgeColor(reservation.bookingType)}>
+                  {getBookingTypeLabel(reservation.bookingType)}
+                </Badge>
+              </div>
+            )}
 
             {/* Court & Facility */}
             <div className="flex items-start gap-2">

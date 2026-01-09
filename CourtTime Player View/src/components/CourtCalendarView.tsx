@@ -13,18 +13,44 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { facilitiesApi, usersApi, bookingApi } from '../api/client';
 import { Calendar, ChevronLeft, ChevronRight, Filter, Grid3X3, Bell, Info, User, Settings, BarChart3, MapPin, Users, LogOut, ChevronDown } from 'lucide-react';
+import { getBookingTypeColor, getBookingTypeBadgeColor, getBookingTypeLabel } from '../constants/bookingTypes';
 
-// Helper to get current time in Eastern Time
-const getEasternTime = (): Date => {
+// Helper to get current time components in Eastern Time
+const getEasternTimeComponents = (): { hours: number; minutes: number; date: Date } => {
   const now = new Date();
-  // Convert to Eastern Time using Intl API
-  const easternTimeStr = now.toLocaleString('en-US', { timeZone: 'America/New_York' });
-  return new Date(easternTimeStr);
+  // Use Intl.DateTimeFormat to get accurate Eastern time components
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(now);
+  const hours = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+  const minutes = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+  return { hours, minutes, date: now };
 };
 
-// Helper to format time for display in Eastern Time
-const formatEasternTime = (date: Date): string => {
-  return date.toLocaleTimeString('en-US', {
+// Helper to get current date in Eastern Time (for date comparisons)
+const getEasternTime = (): Date => {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const parts = formatter.formatToParts(now);
+  const year = parseInt(parts.find(p => p.type === 'year')?.value || '0', 10);
+  const month = parseInt(parts.find(p => p.type === 'month')?.value || '0', 10) - 1;
+  const day = parseInt(parts.find(p => p.type === 'day')?.value || '0', 10);
+  return new Date(year, month, day);
+};
+
+// Helper to format current time for display in Eastern Time (accurate)
+const formatCurrentEasternTime = (): string => {
+  const now = new Date();
+  return now.toLocaleTimeString('en-US', {
     timeZone: 'America/New_York',
     hour: 'numeric',
     minute: '2-digit',
@@ -114,6 +140,18 @@ export function CourtCalendarView({
     reservation: null as any
   });
 
+  // Calendar display customization
+  const [displayedCourtsCount, setDisplayedCourtsCount] = useState<number | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+
+  // Device detection for responsive defaults
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Update current time every 30 seconds for the time indicator line (Eastern Time)
   useEffect(() => {
     const updateTime = () => setCurrentTime(getEasternTime());
@@ -128,17 +166,18 @@ export function CourtCalendarView({
     return date.toDateString() === today.toDateString();
   }, []);
 
+  // Calculate dynamic slot height based on zoom level
+  const slotHeight = useMemo(() => Math.round(48 * (zoomLevel / 100)), [zoomLevel]);
+
   // Calculate the position of the current time indicator line
   const currentTimeLinePosition = useMemo(() => {
     if (!isToday(selectedDate)) return null;
 
-    const easternNow = currentTime;
-    const hours = easternNow.getHours();
-    const minutes = easternNow.getMinutes();
+    // Get accurate Eastern time components
+    const { hours, minutes } = getEasternTimeComponents();
 
     // Calendar starts at 6 AM (6) and ends at 9 PM (21)
-    // Each hour has 4 slots (15 min each), each slot is 48px tall (min-h-[48px])
-    const SLOT_HEIGHT = 48;
+    // Each hour has 4 slots (15 min each)
     const SLOTS_PER_HOUR = 4;
     const START_HOUR = 6;
     const END_HOUR = 21;
@@ -150,27 +189,10 @@ export function CourtCalendarView({
     const hoursFromStart = hours - START_HOUR;
     const minuteFraction = minutes / 60;
     const totalHours = hoursFromStart + minuteFraction;
-    const position = totalHours * SLOTS_PER_HOUR * SLOT_HEIGHT;
+    const position = totalHours * SLOTS_PER_HOUR * slotHeight;
 
     return position;
-  }, [currentTime, selectedDate, isToday]);
-
-  // Show quick reserve popup only on first login (once per session)
-  useEffect(() => {
-    // Check if popup has already been shown this session
-    const hasShownPopup = sessionStorage.getItem('quick_reserve_shown');
-
-    if (!hasShownPopup) {
-      // Show popup after a short delay to allow calendar to render
-      const timer = setTimeout(() => {
-        setShowQuickReserve(true);
-        // Mark as shown for this session
-        sessionStorage.setItem('quick_reserve_shown', 'true');
-      }, 500);
-
-      return () => clearTimeout(timer);
-    }
-  }, []); // Empty dependency array means this runs once when component mounts
+  }, [currentTime, selectedDate, isToday, slotHeight]);
 
   // Fetch user's member facilities with courts
   useEffect(() => {
@@ -427,7 +449,7 @@ export function CourtCalendarView({
   
   // Filter courts based on selected court type
   const allCourts = currentFacility?.courts || [];
-  const courts = React.useMemo(() => {
+  const filteredCourts = React.useMemo(() => {
     // If no court type is selected, show all courts
     if (selectedCourtType === null) {
       return allCourts;
@@ -435,6 +457,20 @@ export function CourtCalendarView({
     // Otherwise filter by selected type
     return allCourts.filter(court => court.type === selectedCourtType);
   }, [allCourts, selectedCourtType]);
+
+  // Apply court display limit based on user preference or device defaults
+  const courts = React.useMemo(() => {
+    // If user has explicitly set a court count, use that
+    if (displayedCourtsCount !== null && displayedCourtsCount > 0) {
+      return filteredCourts.slice(0, displayedCourtsCount);
+    }
+    // On mobile, default to showing 2 courts for better usability
+    if (isMobile && filteredCourts.length > 2) {
+      return filteredCourts.slice(0, 2);
+    }
+    // Desktop shows all courts
+    return filteredCourts;
+  }, [filteredCourts, displayedCourtsCount, isMobile]);
 
   // Helper function to check if a time slot is in the past (using Eastern Time)
   const isPastTime = useCallback((timeSlot: string) => {
@@ -784,7 +820,7 @@ export function CourtCalendarView({
         </header>
 
         {/* Controls */}
-        <div className="px-6 py-6">
+        <div className="px-6 py-6 overflow-x-hidden">
         {memberFacilities.length === 0 ? (
           // Show "no membership" message when user has no facilities
           <Card>
@@ -834,6 +870,44 @@ export function CourtCalendarView({
                     Pickleball
                   </Button>
                 </div>
+              </div>
+
+              {/* Court Display Count */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600">Courts:</span>
+                <Select
+                  value={displayedCourtsCount?.toString() || 'all'}
+                  onValueChange={(v) => setDisplayedCourtsCount(v === 'all' ? null : parseInt(v))}
+                >
+                  <SelectTrigger className="w-[90px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2">2</SelectItem>
+                    <SelectItem value="4">4</SelectItem>
+                    <SelectItem value="6">6</SelectItem>
+                    <SelectItem value="all">All ({filteredCourts.length})</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Zoom Control */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600">Zoom:</span>
+                <Select
+                  value={zoomLevel.toString()}
+                  onValueChange={(v) => setZoomLevel(parseInt(v))}
+                >
+                  <SelectTrigger className="w-[80px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="75">75%</SelectItem>
+                    <SelectItem value="100">100%</SelectItem>
+                    <SelectItem value="125">125%</SelectItem>
+                    <SelectItem value="150">150%</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -894,94 +968,35 @@ export function CourtCalendarView({
               <Button variant="outline" size="sm" onClick={() => navigateDate('next')}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              {/* Jump to Now button - only shown when viewing today */}
-              {isToday(selectedDate) && currentTimeLinePosition !== null && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={scrollToCurrentTime}
-                  className="ml-2 text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400"
-                >
-                  <div className="w-2 h-2 bg-red-600 rounded-full mr-2" />
-                  Now
-                </Button>
-              )}
             </div>
           </div>
         </div>
 
-        {/* Calendar Grid - Simple scrollable container */}
-        <div
-          className="bg-white rounded-lg shadow-lg border border-gray-200"
-          style={{ height: 'calc(100vh - 320px)', minHeight: '500px' }}
-        >
-          {courts.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <p>No {selectedCourtType} courts available at this facility.</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => setSelectedCourtType(selectedCourtType === 'tennis' ? 'pickleball' : 'tennis')}
-              >
-                Show {selectedCourtType === 'tennis' ? 'Pickleball' : 'Tennis'} Courts
-              </Button>
-            </div>
-          ) : (
-            <div
-              ref={calendarScrollRef}
-              className="calendar-scroll h-full w-full overflow-y-scroll overflow-x-auto"
-              style={{ position: 'relative' }}
+        {/* Calendar Grid - Scrollable container like Excel */}
+        {courts.length === 0 ? (
+          <div
+            className="bg-white rounded-lg shadow-lg border border-gray-200 p-8 text-center text-gray-500"
+            style={{ height: 'calc(100vh - 320px)', minHeight: '500px' }}
+          >
+            <p>No {selectedCourtType} courts available at this facility.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={() => setSelectedCourtType(selectedCourtType === 'tennis' ? 'pickleball' : 'tennis')}
             >
-              {/* Current Time Indicator Line - positioned in the scroll container */}
-              {currentTimeLinePosition !== null && (
-                <div
-                  className="pointer-events-none"
-                  style={{
-                    position: 'absolute',
-                    top: `${currentTimeLinePosition + 56}px`, // +56 for header height
-                    left: 0,
-                    right: 0,
-                    zIndex: 25,
-                    height: '2px'
-                  }}
-                >
-                  {/* Time label - sticky to left */}
-                  <div
-                    className="sticky left-0 inline-flex items-center"
-                    style={{ zIndex: 35 }}
-                  >
-                    <div className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-r shadow-md">
-                      {formatEasternTime(currentTime)}
-                    </div>
-                  </div>
-                  {/* Red line */}
-                  <div
-                    className="absolute bg-red-600"
-                    style={{
-                      left: '100px',
-                      right: 0,
-                      top: '50%',
-                      height: '2px',
-                      transform: 'translateY(-50%)',
-                      boxShadow: '0 0 6px rgba(220, 38, 38, 0.6)'
-                    }}
-                  />
-                  {/* Circle indicator */}
-                  <div
-                    className="absolute w-3 h-3 bg-red-600 rounded-full border-2 border-white shadow-md"
-                    style={{
-                      left: '94px',
-                      top: '50%',
-                      transform: 'translateY(-50%)'
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Header Row - Sticky */}
+              Show {selectedCourtType === 'tennis' ? 'Pickleball' : 'Tennis'} Courts
+            </Button>
+          </div>
+        ) : (
+          <div
+            ref={calendarScrollRef}
+            className="calendar-scroll bg-white rounded-lg shadow-lg border border-gray-200 overflow-auto relative w-full"
+            style={{ height: 'calc(100vh - 320px)', minHeight: '500px', maxWidth: '100%' }}
+          >
+              {/* Header Row - Sticky at top */}
               <div
-                className="sticky top-0 z-20 bg-white border-b-2 border-gray-300"
+                className="sticky top-0 z-30 bg-white border-b-2 border-gray-300 shadow-sm"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: `100px repeat(${courts.length}, 180px)`,
@@ -990,7 +1005,7 @@ export function CourtCalendarView({
               >
                 {/* Time Header - double sticky (top + left) */}
                 <div
-                  className="sticky left-0 z-30 bg-gray-100 border-r border-gray-300 p-3 flex items-center justify-center"
+                  className="sticky left-0 z-40 bg-gray-100 border-r border-gray-300 p-3 flex items-center justify-center"
                   style={{ height: '56px' }}
                 >
                   <span className="font-semibold text-sm text-gray-700">Time (EST)</span>
@@ -1020,7 +1035,7 @@ export function CourtCalendarView({
                       style={{
                         display: 'grid',
                         gridTemplateColumns: `100px repeat(${courts.length}, 180px)`,
-                        height: '48px'
+                        height: `${slotHeight}px`
                       }}
                     >
                       {/* Sticky Time Column */}
@@ -1069,10 +1084,12 @@ export function CourtCalendarView({
                                       className={`
                                         absolute inset-0 m-0.5 px-2 py-1 rounded
                                         transition-all duration-150 hover:shadow-md
-                                        overflow-hidden
-                                        ${court.type === 'tennis'
-                                          ? 'bg-blue-100 text-blue-900 border border-blue-300'
-                                          : 'bg-green-100 text-green-900 border border-green-300'
+                                        overflow-hidden border
+                                        ${booking.bookingType
+                                          ? getBookingTypeBadgeColor(booking.bookingType)
+                                          : (court.type === 'tennis'
+                                              ? 'bg-blue-100 text-blue-900 border-blue-300'
+                                              : 'bg-green-100 text-green-900 border-green-300')
                                         }
                                       `}
                                     >
@@ -1080,19 +1097,13 @@ export function CourtCalendarView({
                                       <div className="text-[10px] opacity-80 flex items-center gap-1 mt-0.5">
                                         <span>{booking.duration}</span>
                                         {booking.bookingType && (
-                                          <span className={`px-1 py-0.5 rounded text-[9px] font-medium ${
-                                            court.type === 'tennis'
-                                              ? 'bg-blue-200 text-blue-900'
-                                              : 'bg-green-200 text-green-900'
-                                          }`}>
-                                            {booking.bookingType}
+                                          <span className="px-1 py-0.5 rounded text-[9px] font-medium bg-white/50">
+                                            {getBookingTypeLabel(booking.bookingType)}
                                           </span>
                                         )}
                                       </div>
                                       {booking.notes && (
-                                        <div className={`text-[9px] mt-0.5 truncate italic ${
-                                          court.type === 'tennis' ? 'text-blue-700' : 'text-green-700'
-                                        }`}>
+                                        <div className="text-[9px] mt-0.5 truncate italic opacity-80">
                                           {booking.notes.length > 25 ? `${booking.notes.substring(0, 25)}...` : booking.notes}
                                         </div>
                                       )}
@@ -1103,10 +1114,12 @@ export function CourtCalendarView({
                             {booking && booking.type === 'reservation' && !booking.isFirstSlot && (
                               <div
                                 className={`
-                                  absolute inset-0 m-0.5 rounded-b
-                                  ${court.type === 'tennis'
-                                    ? 'bg-blue-100 border-l border-r border-blue-300'
-                                    : 'bg-green-100 border-l border-r border-green-300'
+                                  absolute inset-0 m-0.5 rounded-b border-l border-r
+                                  ${booking.bookingType
+                                    ? getBookingTypeColor(booking.bookingType)
+                                    : (court.type === 'tennis'
+                                        ? 'bg-blue-100 border-blue-300'
+                                        : 'bg-green-100 border-green-300')
                                   }
                                 `}
                               />
@@ -1118,29 +1131,55 @@ export function CourtCalendarView({
                   );
                 })}
               </div>
-            </div>
-          )}
-        </div>
 
-        {/* Legend */}
-        <div className="mt-4 flex flex-wrap items-center gap-6 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-100 border border-blue-300 rounded"></div>
-            <span>Tennis Reserved</span>
+              {/* Current Time Indicator Line - positioned absolutely in scroll container */}
+              {currentTimeLinePosition !== null && (
+                <div
+                  className="pointer-events-none"
+                  style={{
+                    position: 'absolute',
+                    top: `${currentTimeLinePosition + 56}px`, // +56 for header height
+                    left: 0,
+                    right: 0,
+                    zIndex: 20,
+                    height: '2px'
+                  }}
+                >
+                  {/* Time label - sticky to left */}
+                  <div
+                    className="sticky left-0 inline-flex items-center"
+                    style={{ zIndex: 25 }}
+                  >
+                    <div className="bg-white border border-red-400 text-gray-800 text-[10px] font-bold px-1.5 py-0.5 rounded shadow-md">
+                      {formatCurrentEasternTime()}
+                    </div>
+                  </div>
+                  {/* Red line */}
+                  <div
+                    className="absolute bg-red-600"
+                    style={{
+                      left: '100px',
+                      right: 0,
+                      top: '50%',
+                      height: '2px',
+                      transform: 'translateY(-50%)',
+                      boxShadow: '0 0 6px rgba(220, 38, 38, 0.6)'
+                    }}
+                  />
+                  {/* Circle indicator */}
+                  <div
+                    className="absolute w-3 h-3 bg-red-600 rounded-full border-2 border-white shadow-md"
+                    style={{
+                      left: '94px',
+                      top: '50%',
+                      transform: 'translateY(-50%)'
+                    }}
+                  />
+                </div>
+              )}
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
-            <span>Pickleball Reserved</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-white border border-gray-300 rounded"></div>
-            <span>Available</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-0.5 bg-red-600 rounded"></div>
-            <span>Current Time (EST)</span>
-          </div>
-        </div>
+        )}
+
         </>
         )}
         </div>

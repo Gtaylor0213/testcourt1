@@ -26,6 +26,7 @@ router.post('/register', async (req, res, next) => {
       state,
       zipCode,
       skillLevel,
+      ustaRating,
       bio,
       profilePicture,
       notificationPreferences
@@ -52,6 +53,7 @@ router.post('/register', async (req, res, next) => {
         state,
         zipCode,
         skillLevel,
+        ustaRating,
         bio,
         profilePicture,
         notificationPreferences

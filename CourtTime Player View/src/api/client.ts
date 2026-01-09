@@ -65,6 +65,9 @@ export const authApi = {
     state?: string;
     zipCode?: string;
     skillLevel?: string;
+    ustaRating?: string;
+    bio?: string;
+    profilePicture?: string;
     notificationPreferences?: {
       emailBookingConfirmations?: boolean;
       smsReminders?: boolean;

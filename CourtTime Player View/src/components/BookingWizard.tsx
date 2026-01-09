@@ -4,12 +4,12 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Checkbox } from './ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Calendar, Clock, MapPin, User } from 'lucide-react';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { bookingApi } from '../api/client';
+import { BOOKING_TYPES } from '../constants/bookingTypes';
 
 interface BookingWizardProps {
   isOpen: boolean;
@@ -32,9 +32,7 @@ export function BookingWizard({ isOpen, onClose, court, courtId, date, time, fac
     }
     return '1'; // Default to 1 hour for single slots
   });
-  const [isMatch, setIsMatch] = useState(false);
-  const [isLesson, setIsLesson] = useState(false);
-  const [isBallMachine, setIsBallMachine] = useState(false);
+  const [bookingType, setBookingType] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { showToast } = useNotifications();
@@ -51,9 +49,7 @@ export function BookingWizard({ isOpen, onClose, court, courtId, date, time, fac
         setDuration('1');
       }
       // Reset booking type and notes when modal opens
-      setIsMatch(false);
-      setIsLesson(false);
-      setIsBallMachine(false);
+      setBookingType('');
       setNotes('');
     }
   }, [selectedSlots, isOpen]);
@@ -121,13 +117,6 @@ export function BookingWizard({ isOpen, onClose, court, courtId, date, time, fac
         facility
       });
 
-      // Build booking type string from checkboxes
-      const bookingTypes: string[] = [];
-      if (isMatch) bookingTypes.push('Match');
-      if (isLesson) bookingTypes.push('Lesson');
-      if (isBallMachine) bookingTypes.push('Ball Machine');
-      const bookingType = bookingTypes.length > 0 ? bookingTypes.join(', ') : undefined;
-
       // Create the booking
       const result = await bookingApi.create({
         courtId: courtId,
@@ -137,7 +126,7 @@ export function BookingWizard({ isOpen, onClose, court, courtId, date, time, fac
         startTime: startTime24,
         endTime: endTime24,
         durationMinutes: durationMinutes,
-        bookingType: bookingType,
+        bookingType: bookingType || undefined,
         notes: notes || undefined
       });
 
@@ -310,41 +299,19 @@ export function BookingWizard({ isOpen, onClose, court, courtId, date, time, fac
             </div>
           )}
 
-          {/* Booking Type Checkboxes */}
+          {/* Booking Type Dropdown */}
           <div className="space-y-2">
             <Label>Type (Optional)</Label>
-            <div className="flex gap-4">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="booking-match"
-                  checked={isMatch}
-                  onCheckedChange={(checked) => setIsMatch(checked === true)}
-                />
-                <Label htmlFor="booking-match" className="text-sm cursor-pointer">
-                  Match
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="booking-lesson"
-                  checked={isLesson}
-                  onCheckedChange={(checked) => setIsLesson(checked === true)}
-                />
-                <Label htmlFor="booking-lesson" className="text-sm cursor-pointer">
-                  Lesson
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="booking-ball-machine"
-                  checked={isBallMachine}
-                  onCheckedChange={(checked) => setIsBallMachine(checked === true)}
-                />
-                <Label htmlFor="booking-ball-machine" className="text-sm cursor-pointer">
-                  Ball Machine
-                </Label>
-              </div>
-            </div>
+            <Select value={bookingType} onValueChange={setBookingType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select booking type..." />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(BOOKING_TYPES).map(([key, { label }]) => (
+                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Notes */}

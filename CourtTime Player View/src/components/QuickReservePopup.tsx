@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Calendar, Clock, MapPin, User, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { bookingApi } from '../api/client';
+import { BOOKING_TYPES } from '../constants/bookingTypes';
 
 interface QuickReservePopupProps {
   isOpen: boolean;
@@ -49,10 +50,8 @@ export function QuickReservePopup({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingBookings, setExistingBookings] = useState<any>({});
 
-  // Booking type checkboxes
-  const [isMatch, setIsMatch] = useState(false);
-  const [isLesson, setIsLesson] = useState(false);
-  const [isBallMachine, setIsBallMachine] = useState(false);
+  // Booking type
+  const [bookingType, setBookingType] = useState<string>('');
 
   // Advanced booking state
   const [advancedBooking, setAdvancedBooking] = useState(false);
@@ -90,11 +89,9 @@ export function QuickReservePopup({
 
     setSelectedTime(`${hours}:${minutes.toString().padStart(2, '0')} ${period}`);
 
-    // Reset notes, booking types, and advanced booking when modal opens
+    // Reset notes, booking type, and advanced booking when modal opens
     setNotes('');
-    setIsMatch(false);
-    setIsLesson(false);
-    setIsBallMachine(false);
+    setBookingType('');
     setAdvancedBooking(false);
     setRecurringDays([]);
     setRecurringEndDate('');
@@ -467,13 +464,6 @@ export function QuickReservePopup({
       // Generate dates for booking
       const datesToBook = generateRecurringDates();
 
-      // Build booking type string from checkboxes
-      const bookingTypes: string[] = [];
-      if (isMatch) bookingTypes.push('Match');
-      if (isLesson) bookingTypes.push('Lesson');
-      if (isBallMachine) bookingTypes.push('Ball Machine');
-      const bookingType = bookingTypes.length > 0 ? bookingTypes.join(', ') : undefined;
-
       // Create bookings for all dates
       const results = await Promise.all(
         datesToBook.map(date =>
@@ -485,7 +475,7 @@ export function QuickReservePopup({
             startTime: startTime24,
             endTime: endTime24,
             durationMinutes: Math.round(durationMinutes),
-            bookingType,
+            bookingType: bookingType || undefined,
             notes: notes || undefined
           })
         )
@@ -688,41 +678,19 @@ export function QuickReservePopup({
             </Select>
           </div>
 
-          {/* Booking Type Checkboxes */}
+          {/* Booking Type Dropdown */}
           <div className="flex items-center gap-3">
             <Label className="min-w-[80px]">Type</Label>
-            <div className="flex gap-4 flex-1">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="booking-match"
-                  checked={isMatch}
-                  onCheckedChange={(checked) => setIsMatch(checked === true)}
-                />
-                <Label htmlFor="booking-match" className="text-sm cursor-pointer">
-                  Match
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="booking-lesson"
-                  checked={isLesson}
-                  onCheckedChange={(checked) => setIsLesson(checked === true)}
-                />
-                <Label htmlFor="booking-lesson" className="text-sm cursor-pointer">
-                  Lesson
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="booking-ball-machine"
-                  checked={isBallMachine}
-                  onCheckedChange={(checked) => setIsBallMachine(checked === true)}
-                />
-                <Label htmlFor="booking-ball-machine" className="text-sm cursor-pointer">
-                  Ball Machine
-                </Label>
-              </div>
-            </div>
+            <Select value={bookingType} onValueChange={setBookingType}>
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Select type (optional)..." />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(BOOKING_TYPES).map(([key, { label }]) => (
+                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Notes */}

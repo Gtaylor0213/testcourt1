@@ -55,7 +55,15 @@
       "Bash(PORT=3003 npx tsx:*)",
       "Bash(node scripts/run-migration.js:*)",
       "Bash(cmd.exe /c \"taskkill /PID 21908 /F\")",
-      "Bash(node scripts/check-memberships.js:*)"
+      "Bash(node scripts/check-memberships.js:*)",
+      "Bash(wc:*)",
+      "Bash(node scripts/populate-appletree-data.js:*)",
+      "Bash(npm run server:direct:*)",
+      "Bash(npm run build:*)",
+      "Bash(cmd /c \"taskkill /PID 18072 /F\")",
+      "Bash(powershell -Command:*)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(dir /s /b \"c:\\\\Users\\\\14782\\\\Desktop\\\\New folder \\(2\\)\\\\testcourt1\\\\CourtTime Player View\\\\src\\\\database\")"
     ],
     "deny": [],
     "ask": []

@@ -57,52 +57,80 @@ export class RulesEngine {
   /**
    * Main evaluation method - called before booking creation
    * Evaluation order: Court -> Account -> Household
+   *
+   * NOTE: This method fails gracefully if the rules engine tables don't exist.
+   * When tables are missing, it returns allowed=true to let bookings proceed.
+   * TODO: Run migration 007_booking_rules_engine.sql to enable full rule validation.
    */
   async evaluate(request: BookingRequest): Promise<EvaluationResult> {
-    // Build context (fetch user, court, facility, existing bookings, etc.)
-    const context = await buildRuleContext(request);
+    try {
+      // Build context (fetch user, court, facility, existing bookings, etc.)
+      const context = await buildRuleContext(request);
 
-    // Get applicable rules for this facility/court/tier
-    const rules = this.getApplicableRules(context);
+      // Get applicable rules for this facility/court/tier
+      const rules = this.getApplicableRules(context);
 
-    const results: RuleResult[] = [];
+      const results: RuleResult[] = [];
 
-    // Group rules by category
-    const courtRules = rules.filter(r => r.ruleCategory === 'court');
-    const accountRules = rules.filter(r => r.ruleCategory === 'account');
-    const householdRules = rules.filter(r => r.ruleCategory === 'household');
+      // Group rules by category
+      const courtRules = rules.filter(r => r.ruleCategory === 'court');
+      const accountRules = rules.filter(r => r.ruleCategory === 'account');
+      const householdRules = rules.filter(r => r.ruleCategory === 'household');
 
-    // Evaluate court rules first (CRT-*)
-    for (const rule of courtRules) {
-      const result = await this.evaluateRule(rule, context);
-      if (result) results.push(result);
-    }
-
-    // Evaluate account rules second (ACC-*)
-    for (const rule of accountRules) {
-      const result = await this.evaluateRule(rule, context);
-      if (result) results.push(result);
-    }
-
-    // Evaluate household rules last (HH-*) - only if household exists
-    if (context.household) {
-      for (const rule of householdRules) {
+      // Evaluate court rules first (CRT-*)
+      for (const rule of courtRules) {
         const result = await this.evaluateRule(rule, context);
         if (result) results.push(result);
       }
+
+      // Evaluate account rules second (ACC-*)
+      for (const rule of accountRules) {
+        const result = await this.evaluateRule(rule, context);
+        if (result) results.push(result);
+      }
+
+      // Evaluate household rules last (HH-*) - only if household exists
+      if (context.household) {
+        for (const rule of householdRules) {
+          const result = await this.evaluateRule(rule, context);
+          if (result) results.push(result);
+        }
+      }
+
+      // Compile final result
+      const blockers = results.filter(r => !r.passed && r.severity === 'error');
+      const warnings = results.filter(r => !r.passed && r.severity === 'warning');
+
+      return {
+        allowed: blockers.length === 0,
+        results,
+        blockers,
+        warnings,
+        isPrimeTime: context.isPrimeTime
+      };
+    } catch (error: any) {
+      // Gracefully handle missing tables - allow booking to proceed
+      // This enables the app to work before migration is run
+      if (error?.code === '42P01') { // PostgreSQL "relation does not exist" error
+        console.warn('Rules engine tables not found. Skipping rule validation. Run migration 007_booking_rules_engine.sql to enable rules.');
+        return {
+          allowed: true,
+          results: [],
+          blockers: [],
+          warnings: [{
+            ruleCode: 'SYSTEM',
+            ruleName: 'Rules Engine',
+            passed: false,
+            severity: 'warning',
+            message: 'Rule validation skipped - rules engine not configured'
+          }],
+          isPrimeTime: false
+        };
+      }
+      // Re-throw other errors
+      console.error('Error in rules engine evaluation:', error);
+      throw error;
     }
-
-    // Compile final result
-    const blockers = results.filter(r => !r.passed && r.severity === 'error');
-    const warnings = results.filter(r => !r.passed && r.severity === 'warning');
-
-    return {
-      allowed: blockers.length === 0,
-      results,
-      blockers,
-      warnings,
-      isPrimeTime: context.isPrimeTime
-    };
   }
 
   /**
@@ -248,49 +276,63 @@ export class RulesEngine {
   async evaluateCancellation(
     request: CancellationRequest
   ): Promise<CancellationEvaluationResult> {
-    const { booking, strikes, facility } = await buildCancellationContext(
-      request.bookingId,
-      request.userId
-    );
+    try {
+      const { booking, strikes, facility } = await buildCancellationContext(
+        request.bookingId,
+        request.userId
+      );
 
-    // Find cancellation rules
-    const lateCancelRule = facility.rules.find(r => r.ruleCode === 'ACC-008');
-    const courtCancelRule = facility.rules.find(r => r.ruleCode === 'CRT-012');
+      // Find cancellation rules
+      const lateCancelRule = facility.rules.find(r => r.ruleCode === 'ACC-008');
+      const courtCancelRule = facility.rules.find(r => r.ruleCode === 'CRT-012');
 
-    // Calculate minutes before start
-    const bookingStart = combineDateAndTime(booking.bookingDate, booking.startTime);
-    const now = new Date();
-    const minutesBeforeStart = minutesBetween(now, bookingStart);
+      // Calculate minutes before start
+      const bookingStart = combineDateAndTime(booking.bookingDate, booking.startTime);
+      const now = new Date();
+      const minutesBeforeStart = minutesBetween(now, bookingStart);
 
-    // Determine cutoff (court-specific or account-level)
-    let cutoffMinutes = 240; // Default 4 hours
-    let penaltyType = 'strike';
+      // Determine cutoff (court-specific or account-level)
+      let cutoffMinutes = 240; // Default 4 hours
+      let penaltyType = 'strike';
 
-    if (courtCancelRule && courtCancelRule.ruleConfig) {
-      cutoffMinutes = courtCancelRule.ruleConfig.cancel_cutoff_minutes || cutoffMinutes;
-      penaltyType = courtCancelRule.ruleConfig.penalty_type || penaltyType;
-    } else if (lateCancelRule && lateCancelRule.ruleConfig) {
-      cutoffMinutes = lateCancelRule.ruleConfig.late_cancel_cutoff_minutes || cutoffMinutes;
-      penaltyType = lateCancelRule.ruleConfig.penalty_type || penaltyType;
+      if (courtCancelRule && courtCancelRule.ruleConfig) {
+        cutoffMinutes = courtCancelRule.ruleConfig.cancel_cutoff_minutes || cutoffMinutes;
+        penaltyType = courtCancelRule.ruleConfig.penalty_type || penaltyType;
+      } else if (lateCancelRule && lateCancelRule.ruleConfig) {
+        cutoffMinutes = lateCancelRule.ruleConfig.late_cancel_cutoff_minutes || cutoffMinutes;
+        penaltyType = lateCancelRule.ruleConfig.penalty_type || penaltyType;
+      }
+
+      const isLateCancel = minutesBeforeStart < cutoffMinutes;
+      const strikeWillBeIssued = isLateCancel && penaltyType === 'strike';
+
+      let message: string | undefined;
+      if (isLateCancel) {
+        message = strikeWillBeIssued
+          ? `This is a late cancellation (within ${cutoffMinutes} minutes of start). A strike will be issued.`
+          : `This is a late cancellation (within ${cutoffMinutes} minutes of start).`;
+      }
+
+      return {
+        allowed: true, // Cancellation is always allowed, but may have consequences
+        isLateCancel,
+        strikeWillBeIssued,
+        minutesBeforeStart,
+        message
+      };
+    } catch (error: any) {
+      // Gracefully handle missing tables
+      if (error?.code === '42P01') {
+        console.warn('Rules engine tables not found. Skipping cancellation rule evaluation.');
+        return {
+          allowed: true,
+          isLateCancel: false,
+          strikeWillBeIssued: false,
+          minutesBeforeStart: 0
+        };
+      }
+      throw error;
     }
-
-    const isLateCancel = minutesBeforeStart < cutoffMinutes;
-    const strikeWillBeIssued = isLateCancel && penaltyType === 'strike';
-
-    let message: string | undefined;
-    if (isLateCancel) {
-      message = strikeWillBeIssued
-        ? `This is a late cancellation (within ${cutoffMinutes} minutes of start). A strike will be issued.`
-        : `This is a late cancellation (within ${cutoffMinutes} minutes of start).`;
-    }
-
-    return {
-      allowed: true, // Cancellation is always allowed, but may have consequences
-      isLateCancel,
-      strikeWillBeIssued,
-      minutesBeforeStart,
-      message
-    };
   }
 }
 
